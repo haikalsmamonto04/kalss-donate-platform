@@ -407,19 +407,6 @@ export default function DashboardPage() {
                   Buka Dashboard via Token
                   <ArrowRight className="w-4 h-4" />
                 </button>
-
-                <div className="pt-1 text-center">
-                  <p className="text-[11px] text-slate-500">
-                    Mau coba demo? Token:{" "}
-                    <button
-                      type="button"
-                      onClick={() => setInputToken("kalss_live_demo_key_57")}
-                      className="text-amber-400 hover:underline font-mono"
-                    >
-                      kalss_live_demo_key_57
-                    </button>
-                  </p>
-                </div>
               </form>
             </>
           )}
