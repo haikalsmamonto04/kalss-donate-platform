@@ -365,42 +365,12 @@ export default function DashboardPage() {
               </div>
 
               {/* Divider */}
-              <div className="flex items-center my-5">
+              <div className="flex items-center my-6">
                 <div className="flex-1 border-t border-slate-800" />
                 <span className="px-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                  atau kelola token
+                  atau masuk via token
                 </span>
                 <div className="flex-1 border-t border-slate-800" />
-              </div>
-
-              {/* Tabs Switch: Login vs Register */}
-              <div className="grid grid-cols-2 p-1 bg-slate-950/70 border border-slate-800 rounded-xl mb-6">
-                <button
-                  onClick={() => {
-                    setLoginMode("login");
-                    setAuthError("");
-                  }}
-                  className={`py-2 text-xs font-semibold rounded-lg transition ${
-                    loginMode === "login"
-                      ? "bg-slate-800 text-amber-400 shadow-sm"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  Masuk via Token
-                </button>
-                <button
-                  onClick={() => {
-                    setLoginMode("register");
-                    setAuthError("");
-                  }}
-                  className={`py-2 text-xs font-semibold rounded-lg transition ${
-                    loginMode === "register"
-                      ? "bg-slate-800 text-amber-400 shadow-sm"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  Buat Token Baru
-                </button>
               </div>
 
               {/* Error Message */}
@@ -411,96 +381,46 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* Mode 1: Login via Token */}
-              {loginMode === "login" ? (
-                <form onSubmit={handleManualLogin} className="space-y-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                      Ketik Token Unik Kamu
-                    </label>
-                    <div className="relative">
-                      <Key className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                      <input
-                        type="text"
-                        placeholder="kalss_live_4848jdjdja8fg8g8g8hg..."
-                        value={inputToken}
-                        onChange={(e) => setInputToken(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700/80 focus:border-amber-500 rounded-xl text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono transition"
-                      />
-                    </div>
+              {/* Direct Token Login */}
+              <form onSubmit={handleManualLogin} className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                    Masukkan Token Game Kamu
+                  </label>
+                  <div className="relative">
+                    <Key className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                    <input
+                      type="text"
+                      placeholder="kalss_live_4848jdjdja8fg8g8g8hg..."
+                      value={inputToken}
+                      onChange={(e) => setInputToken(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700/80 focus:border-amber-500 rounded-xl text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono transition"
+                    />
                   </div>
+                </div>
 
-                  <button
-                    type="submit"
-                    disabled={isSubmittingAuth}
-                    className="w-full py-3 px-4 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-2"
-                  >
-                    Buka Dashboard Saya
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingAuth}
+                  className="w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 transition flex items-center justify-center gap-2"
+                >
+                  Buka Dashboard via Token
+                  <ArrowRight className="w-4 h-4" />
+                </button>
 
-                  <div className="pt-2 text-center">
-                    <p className="text-[11px] text-slate-500">
-                      Mau uji coba cepat? Pakai token demo:{" "}
-                      <button
-                        type="button"
-                        onClick={() => setInputToken("kalss_live_demo_key_57")}
-                        className="text-amber-400 hover:underline font-mono"
-                      >
-                        kalss_live_demo_key_57
-                      </button>
-                    </p>
-                  </div>
-                </form>
-              ) : (
-                /* Mode 2: Register New Token */
-                <form onSubmit={handleRegisterToken} className="space-y-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                      Nama Game Roblox Kamu
-                    </label>
-                    <div className="relative">
-                      <Gamepad2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                      <input
-                        type="text"
-                        required
-                        placeholder="misal: Donasi Efek Koin Kalss"
-                        value={regGameName}
-                        onChange={(e) => setRegGameName(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700/80 focus:border-amber-500 rounded-xl text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500 transition"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                      Username Roblox Kamu <span className="text-slate-500 font-normal">(Opsional)</span>
-                    </label>
-                    <div className="relative">
-                      <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                      <input
-                        type="text"
-                        placeholder="misal: haikalsmamonto04"
-                        value={regRobloxUser}
-                        onChange={(e) => setRegRobloxUser(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700/80 focus:border-amber-500 rounded-xl text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500 transition"
-                      />
-                    </div>
-                    <p className="text-[10px] text-slate-500 mt-1">
-                      Foto profil avatar Roblox kamu akan otomatis ditampilkan di dashboard.
-                    </p>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSubmittingAuth}
-                    className="w-full py-3 px-4 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-2"
-                  >
-                    {isSubmittingAuth ? "Membuat Kunci..." : "Generate Token Kalss Saya"}
-                    <Sparkles className="w-4 h-4" />
-                  </button>
-                </form>
-              )}
+                <div className="pt-1 text-center">
+                  <p className="text-[11px] text-slate-500">
+                    Mau coba demo? Token:{" "}
+                    <button
+                      type="button"
+                      onClick={() => setInputToken("kalss_live_demo_key_57")}
+                      className="text-amber-400 hover:underline font-mono"
+                    >
+                      kalss_live_demo_key_57
+                    </button>
+                  </p>
+                </div>
+              </form>
             </>
           )}
 
