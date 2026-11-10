@@ -97,10 +97,25 @@ export default function DashboardPage() {
     setTimeout(() => setCopiedText(null), 2000);
   };
 
-  // Check stored auth on load
+  // Check stored auth or OAuth token on load
   useEffect(() => {
     if (typeof window !== "undefined") {
       setOrigin(window.location.origin);
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenParam = urlParams.get("token");
+      const authErr = urlParams.get("auth_error");
+
+      if (authErr) {
+        setAuthError("Gagal otentikasi dengan Roblox. Silakan coba lagi.");
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
+      if (tokenParam) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        verifyAndLogin(tokenParam);
+        return;
+      }
+
       const saved = localStorage.getItem("kalss_auth_token");
       if (saved) {
         verifyAndLogin(saved);
@@ -332,6 +347,32 @@ export default function DashboardPage() {
             </div>
           ) : (
             <>
+              {/* Primary: Continue with Roblox (OAuth 2.0) */}
+              <div className="mb-6">
+                <a
+                  href="/api/auth/roblox/login"
+                  className="w-full py-3.5 px-4 rounded-2xl font-bold text-xs sm:text-sm bg-white hover:bg-slate-100 text-slate-950 shadow-xl shadow-white/5 transition flex items-center justify-center gap-3 border border-slate-200 group"
+                >
+                  <svg className="w-5 h-5 fill-slate-950 shrink-0" viewBox="0 0 24 24">
+                    <path d="M5.166 0L0 18.834 18.834 24 24 5.166 5.166 0zm9.467 14.502l-4.734-1.298 1.298-4.734 4.734 1.298-1.298 4.734z" />
+                  </svg>
+                  <span>Continue with Roblox</span>
+                  <ArrowRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition" />
+                </a>
+                <p className="text-[10px] text-center text-slate-500 mt-2">
+                  Masuk resmi via akun Roblox kamu (aman 100% tanpa password)
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className="flex items-center my-5">
+                <div className="flex-1 border-t border-slate-800" />
+                <span className="px-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                  atau kelola token
+                </span>
+                <div className="flex-1 border-t border-slate-800" />
+              </div>
+
               {/* Tabs Switch: Login vs Register */}
               <div className="grid grid-cols-2 p-1 bg-slate-950/70 border border-slate-800 rounded-xl mb-6">
                 <button

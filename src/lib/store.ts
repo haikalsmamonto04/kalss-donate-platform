@@ -5,6 +5,7 @@ export interface ApiKeyRecord {
   id: string;
   key: string;
   name: string;
+  robloxUserId?: string;
   robloxUsername?: string;
   avatarUrl?: string;
   createdAt: string;
@@ -139,6 +140,41 @@ export const KalssStore = {
   findKey(apiKey: string): ApiKeyRecord | undefined {
     const data = loadData();
     return data.keys.find((k) => k.key === apiKey);
+  },
+
+  findByRobloxUserId(userId: string): ApiKeyRecord | undefined {
+    const data = loadData();
+    return data.keys.find((k) => k.robloxUserId === userId);
+  },
+
+  createOrGetRobloxKey(userId: string, username: string, avatarUrl?: string): ApiKeyRecord {
+    const data = loadData();
+    const existing = data.keys.find((k) => k.robloxUserId === userId);
+    if (existing) {
+      if (avatarUrl) existing.avatarUrl = avatarUrl;
+      if (username) existing.robloxUsername = username;
+      saveData(data);
+      return existing;
+    }
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let randomHex = "";
+    for (let i = 0; i < 20; i++) {
+      randomHex += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const newRecord: ApiKeyRecord = {
+      id: "key-" + Date.now(),
+      key: `kalss_live_${randomHex}`,
+      name: `Game Roblox (${username})`,
+      robloxUserId: userId,
+      robloxUsername: username,
+      avatarUrl: avatarUrl || "",
+      createdAt: new Date().toISOString(),
+      totalAmount: 0,
+      donationCount: 0,
+    };
+    data.keys.unshift(newRecord);
+    saveData(data);
+    return newRecord;
   },
 
   createKey(name: string, robloxUsername?: string, avatarUrl?: string): ApiKeyRecord {
