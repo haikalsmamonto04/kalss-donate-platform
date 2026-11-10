@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const CLIENT_ID = process.env.ROBLOX_CLIENT_ID || "3859817395354715482";
+const CLIENT_ID = process.env.ROBLOX_CLIENT_ID || "5150396041540626436";
 
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;

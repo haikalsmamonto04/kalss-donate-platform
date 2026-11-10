@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { KalssStore } from "@/lib/store";
 
-const CLIENT_ID = process.env.ROBLOX_CLIENT_ID || "3859817395354715482";
+const CLIENT_ID = process.env.ROBLOX_CLIENT_ID || "5150396041540626436";
 const CLIENT_SECRET =
   process.env.ROBLOX_CLIENT_SECRET ||
-  "RBX-97ddfq-TAUu61kjoSfLl_korzKNtWHtc7sX6Xt8LktPX0h-xLGKZBD6Pxq9mytiS";
+  "RBX-Lgfcz-t37UWv7oc18ymkNAFCj6z_IH75PE_4JfsUxKs3JeepHEFTEUiV63DmqOMB";
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
