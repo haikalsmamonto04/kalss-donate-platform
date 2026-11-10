@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KALSS DONATION GATEWAY • Platform Donasi Real Roblox
 
-## Getting Started
+Platform jembatan (bridge) donasi otomatis dari platform pembayaran Indonesia (**Saweria**, **BagiBagi**, **Sociabuzz**, **Trakteer**) langsung ke game Roblox **Kalss Studio**.
 
-First, run the development server:
+---
 
+## 🚀 Fitur Utama
+1. **Multi-Game API Key**: Buat API Key terpisah untuk setiap game Roblox yang kamu miliki (`kalss_live_...`).
+2. **Webhook Receiver**:
+   - `POST /api/webhook/saweria?key=YOUR_API_KEY`
+   - `POST /api/webhook/bagibagi?key=YOUR_API_KEY`
+   - `POST /api/webhook/sociabuzz?key=YOUR_API_KEY`
+3. **Roblox Integration**:
+   - `POST /api/pull`: Menjemput transaksi antrean secara real-time dari Roblox.
+   - `POST /api/ack`: Mengonfirmasi donasi yang sudah berhasil diproses di game.
+4. **Simulator Donasi**: Tombol test instan untuk menguji efek Nuke / Smite / BlackHole langsung di Roblox tanpa bayar uang asli.
+5. **Dashboard Analytics**: Statistik total donasi (Rp), jumlah transaksi, dan tabel riwayat live.
+
+---
+
+## 📦 Cara Deploy ke GitHub + Vercel (Gratis)
+
+### 1. Push ke GitHub
+Buka terminal di folder project ini:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git add .
+git commit -m "feat: initial kalss donation platform"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buat repository baru di [GitHub](https://github.com/new) (misal: `kalss-donate-platform`), lalu jalankan perintah GitHub kamu:
+```bash
+git remote add origin https://github.com/USERNAME/kalss-donate-platform.git
+git branch -M main
+git push -u origin main
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. Deploy ke Vercel (1-Click)
+1. Buka [Vercel](https://vercel.com) dan login dengan akun GitHub kamu.
+2. Klik tombol **"Add New"** -> **"Project"**.
+3. Pilih repository `kalss-donate-platform` yang baru saja kamu push.
+4. Klik **"Deploy"** (Semua pengaturan default Next.js sudah otomatis pas!).
+5. Dalam ~1 menit, websitemu sudah aktif online dengan domain HTTPS (contoh: `https://kalss-donate.vercel.app`).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## ⚙️ Cara Menghubungkan ke Saweria / BagiBagi
 
-To learn more about Next.js, take a look at the following resources:
+1. Buka website kamu di Vercel (contoh: `https://kalss-donate.vercel.app`).
+2. Di tab **Pengaturan API & Webhook**, salin URL webhook platform yang kamu pakai:
+   * **Saweria**: `https://kalss-donate.vercel.app/api/webhook/saweria?key=kalss_live_...`
+   * **BagiBagi**: `https://kalss-donate.vercel.app/api/webhook/bagibagi?key=kalss_live_...`
+   * **Sociabuzz**: `https://kalss-donate.vercel.app/api/webhook/sociabuzz?key=kalss_live_...`
+3. Tempelkan URL tersebut ke menu **Webhook** di dashboard akun Saweria / BagiBagi kamu.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🎮 Cara Menghubungkan ke Game Roblox Kamu
 
-## Deploy on Vercel
+Buka game kamu di Roblox Studio, lalu buka file:
+📁 `ReplicatedStorage.KalssDonateRealRS.KalssDonateRealConfig`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Isi bagian **Backend**:
+```lua
+Config.Backend = {
+    Enabled = true,
+    WorkerBaseUrl = "https://kalss-donate.vercel.app", -- Ganti dengan domain Vercel kamu
+    ApiKey = "kalss_live_demo_key_57",                -- Ganti dengan API Key kamu
+    PollInterval = 3,                                  -- Menjemput donasi tiap 3 detik
+}
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Sekarang setiap ada donasi masuk di Saweria, efek sinematik (Nuke, Smite, Blackhole, Endowment) dan papan donasi Kalss kamu akan meledak otomatis secara real-time!
