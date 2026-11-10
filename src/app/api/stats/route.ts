@@ -3,15 +3,30 @@ import { KalssStore } from "@/lib/store";
 
 export async function GET(req: NextRequest) {
   try {
-    const key = req.nextUrl.searchParams.get("key") || undefined;
+    const key = (req.nextUrl.searchParams.get("key") || "").trim();
+
+    if (!key) {
+      return NextResponse.json(
+        { ok: false, error: "Parameter 'key' wajib disertakan" },
+        { status: 400 }
+      );
+    }
+
+    const keyRecord = KalssStore.findKey(key);
+    if (!keyRecord) {
+      return NextResponse.json(
+        { ok: false, error: "Token tidak ditemukan atau tidak valid" },
+        { status: 404 }
+      );
+    }
+
     const stats = KalssStore.getStats(key);
-    const keys = KalssStore.getKeys();
-    const recent = KalssStore.getDonations(key, 30);
+    const recent = KalssStore.getDonations(key, 50);
 
     return NextResponse.json({
       ok: true,
+      keyRecord,
       stats,
-      keys,
       recent,
     });
   } catch (err: any) {

@@ -5,6 +5,8 @@ export interface ApiKeyRecord {
   id: string;
   key: string;
   name: string;
+  robloxUsername?: string;
+  avatarUrl?: string;
   createdAt: string;
   totalAmount: number;
   donationCount: number;
@@ -139,13 +141,19 @@ export const KalssStore = {
     return data.keys.find((k) => k.key === apiKey);
   },
 
-  createKey(name: string): ApiKeyRecord {
+  createKey(name: string, robloxUsername?: string, avatarUrl?: string): ApiKeyRecord {
     const data = loadData();
-    const randomHex = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let randomHex = "";
+    for (let i = 0; i < 20; i++) {
+      randomHex += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
     const newRecord: ApiKeyRecord = {
       id: "key-" + Date.now(),
       key: `kalss_live_${randomHex}`,
       name: name || "Game Baru",
+      robloxUsername: robloxUsername || "",
+      avatarUrl: avatarUrl || "",
       createdAt: new Date().toISOString(),
       totalAmount: 0,
       donationCount: 0,

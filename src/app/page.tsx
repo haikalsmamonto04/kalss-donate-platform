@@ -9,19 +9,26 @@ import {
   Copy,
   ExternalLink,
   RefreshCw,
-  Plus,
   Send,
   Zap,
   Globe,
   Radio,
   Clock,
   Sparkles,
+  LogOut,
+  User,
+  ShieldCheck,
+  Gamepad2,
+  AlertCircle,
+  ArrowRight,
 } from "lucide-react";
 
 interface KeyRecord {
   id: string;
   key: string;
   name: string;
+  robloxUsername?: string;
+  avatarUrl?: string;
   createdAt: string;
   totalAmount: number;
   donationCount: number;
@@ -32,6 +39,7 @@ interface Donation {
   apiKey: string;
   amount: number;
   donorName: string;
+  username?: string;
   message: string;
   targetName: string;
   platform: string;
@@ -48,48 +56,154 @@ interface StatsData {
 }
 
 export default function DashboardPage() {
+  // Auth state
+  const [authToken, setAuthToken] = useState<string>("");
+  const [currentUser, setCurrentUser] = useState<KeyRecord | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [authError, setAuthError] = useState<string>("");
+
+  // Login form state
+  const [loginMode, setLoginMode] = useState<"login" | "register">("login");
+  const [inputToken, setInputToken] = useState<string>("");
+  const [regGameName, setRegGameName] = useState<string>("");
+  const [regRobloxUser, setRegRobloxUser] = useState<string>("");
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState<boolean>(false);
+  const [justCreatedToken, setJustCreatedToken] = useState<KeyRecord | null>(null);
+
+  // Dashboard data state
   const [stats, setStats] = useState<StatsData>({
     totalAmount: 0,
     totalCount: 0,
     pendingCount: 0,
     keyCount: 0,
   });
-  const [keys, setKeys] = useState<KeyRecord[]>([]);
   const [donations, setDonations] = useState<Donation[]>([]);
-  const [selectedKey, setSelectedKey] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"keys" | "simulator" | "logs">("keys");
+  const [activeTab, setActiveTab] = useState<"webhook" | "simulator" | "logs">("webhook");
   const [origin, setOrigin] = useState<string>("");
-
-  // Key creation state
-  const [newKeyName, setNewKeyName] = useState("");
-  const [creatingKey, setCreatingKey] = useState(false);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
 
   // Simulator state
-  const [simDonor, setSimDonor] = useState("Sultan_Gamer");
-  const [simAmount, setSimAmount] = useState(2000);
-  const [simMessage, setSimMessage] = useState("Ini efek Lubang Hitam buat game kamu! 🔥");
-  const [simTarget, setSimTarget] = useState("");
+  const [simDonor, setSimDonor] = useState("Sultan_Roblox");
+  const [simAmount, setSimAmount] = useState(100000);
+  const [simMessage, setSimMessage] = useState("Efek Nuke buat gamemu! 🔥");
+  const [simPlatform, setSimPlatform] = useState<"saweria" | "bagibagi" | "sociabuzz">("saweria");
   const [simStatus, setSimStatus] = useState<string | null>(null);
   const [simLoading, setSimLoading] = useState(false);
 
-  const [copiedText, setCopiedText] = useState<string | null>(null);
-
+  // Copy helper
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopiedText(label);
     setTimeout(() => setCopiedText(null), 2000);
   };
 
-  const fetchStats = async () => {
+  // Check stored auth on load
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setOrigin(window.location.origin);
+      const saved = localStorage.getItem("kalss_auth_token");
+      if (saved) {
+        verifyAndLogin(saved);
+      } else {
+        setAuthLoading(false);
+      }
+    }
+  }, []);
+
+  const verifyAndLogin = async (key: string) => {
+    setAuthLoading(true);
+    setAuthError("");
     try {
-      const res = await fetch(`/api/stats${selectedKey ? `?key=${selectedKey}` : ""}`);
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key }),
+      });
+      const data = await res.json();
+      if (data.ok && data.keyRecord) {
+        setAuthToken(data.keyRecord.key);
+        setCurrentUser(data.keyRecord);
+        localStorage.setItem("kalss_auth_token", data.keyRecord.key);
+        fetchStats(data.keyRecord.key);
+      } else {
+        localStorage.removeItem("kalss_auth_token");
+        setAuthError(data.error || "Token tidak valid");
+        setAuthToken("");
+        setCurrentUser(null);
+      }
+    } catch {
+      setAuthError("Gagal menghubungi server");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleManualLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputToken.trim()) {
+      setAuthError("Harap masukkan token kamu");
+      return;
+    }
+    await verifyAndLogin(inputToken.trim());
+  };
+
+  const handleRegisterToken = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regGameName.trim()) {
+      setAuthError("Harap masukkan nama game kamu");
+      return;
+    }
+    setIsSubmittingAuth(true);
+    setAuthError("");
+    try {
+      const res = await fetch("/api/auth/create-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gameName: regGameName.trim(),
+          robloxUsername: regRobloxUser.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.keyRecord) {
+        setJustCreatedToken(data.keyRecord);
+      } else {
+        setAuthError(data.error || "Gagal membuat token");
+      }
+    } catch {
+      setAuthError("Gagal membuat token");
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  };
+
+  const handleEnterDashboard = () => {
+    if (justCreatedToken) {
+      setAuthToken(justCreatedToken.key);
+      setCurrentUser(justCreatedToken);
+      localStorage.setItem("kalss_auth_token", justCreatedToken.key);
+      setJustCreatedToken(null);
+      fetchStats(justCreatedToken.key);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("kalss_auth_token");
+    setAuthToken("");
+    setCurrentUser(null);
+    setInputToken("");
+    setAuthError("");
+  };
+
+  const fetchStats = async (key: string) => {
+    try {
+      const res = await fetch(`/api/stats?key=${encodeURIComponent(key)}`);
       const data = await res.json();
       if (data.ok) {
         setStats(data.stats);
-        setKeys(data.keys);
         setDonations(data.recent);
-        if (!selectedKey && data.keys.length > 0) {
-          setSelectedKey(data.keys[0].key);
+        if (data.keyRecord) {
+          setCurrentUser(data.keyRecord);
         }
       }
     } catch (err) {
@@ -97,37 +211,17 @@ export default function DashboardPage() {
     }
   };
 
+  // Poll stats every 5 seconds when in dashboard
   useEffect(() => {
-    setOrigin(window.location.origin);
-    fetchStats();
-    const interval = setInterval(fetchStats, 5000);
+    if (!authToken) return;
+    const interval = setInterval(() => {
+      fetchStats(authToken);
+    }, 5000);
     return () => clearInterval(interval);
-  }, [selectedKey]);
+  }, [authToken]);
 
-  const handleCreateKey = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newKeyName.trim()) return;
-    setCreatingKey(true);
-    try {
-      const res = await fetch("/api/keys", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newKeyName }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setNewKeyName("");
-        fetchStats();
-        setSelectedKey(data.key.key);
-      }
-    } finally {
-      setCreatingKey(false);
-    }
-  };
-
-  const handleSimulateDonation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedKey) return;
+  const handleSimulate = async () => {
+    if (!authToken) return;
     setSimLoading(true);
     setSimStatus(null);
     try {
@@ -135,593 +229,757 @@ export default function DashboardPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          apiKey: selectedKey,
-          amount: Number(simAmount),
-          donorName: simDonor,
-          message: simMessage,
-          targetName: simTarget,
+          apiKey: authToken,
+          donorName: simDonor || "Sultan_Roblox",
+          amount: Number(simAmount) || 100000,
+          message: simMessage || "Donasi Real Kalss!",
+          platform: simPlatform,
         }),
       });
       const data = await res.json();
       if (data.ok) {
-        setSimStatus(data.message);
-        fetchStats();
+        setSimStatus("✅ Berhasil! Donasi terkirim ke antrean game kamu.");
+        fetchStats(authToken);
       } else {
-        setSimStatus("Error: " + data.error);
+        setSimStatus("❌ Gagal: " + (data.error || "Error"));
       }
+    } catch (err: any) {
+      setSimStatus("❌ Error koneksi: " + err.message);
     } finally {
       setSimLoading(false);
     }
   };
 
-  const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
+  // Loading Screen
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-slate-400">Memuat Kalss Donation Gateway...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const getWebhookUrl = (platform: "saweria" | "bagibagi" | "sociabuzz") => {
-    const base = origin || "https://kalss-donate.vercel.app";
-    return `${base}/api/webhook/${platform}?key=${selectedKey || "YOUR_API_KEY"}`;
-  };
+  // LOGIN & REGISTRATION GATE
+  if (!authToken || !currentUser) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden">
+        {/* Background Gradients */}
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Modal / Card */}
+        <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-3xl p-6 md:p-8 backdrop-blur-xl shadow-2xl relative z-10">
+          {/* Logo & Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg shadow-amber-500/20 mb-4">
+              <Coins className="w-8 h-8 text-slate-950" />
+            </div>
+            <h1 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-2">
+              KALSS GATEWAY
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                v2.0 Real
+              </span>
+            </h1>
+            <p className="text-xs text-slate-400 mt-1.5">
+              Platform Jembatan Donasi Saweria & BagiBagi ke Game Roblox
+            </p>
+          </div>
+
+          {/* Just Created Token Success View */}
+          {justCreatedToken ? (
+            <div className="space-y-5 animate-in fade-in duration-300">
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+                <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-2" />
+                <h3 className="text-base font-bold text-emerald-400">Token Berhasil Dibuat!</h3>
+                <p className="text-xs text-slate-300 mt-1">
+                  Simpan kode unik token kamu ini baik-baik. Gunakan untuk login ke dashboard dan masukkan ke script Roblox kamu.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block mb-2">
+                  Token Unik Kamu:
+                </label>
+                <div className="flex items-center gap-2 p-3 bg-slate-950 border border-amber-500/30 rounded-xl">
+                  <Key className="w-4 h-4 text-amber-400 shrink-0" />
+                  <code className="text-xs font-mono text-amber-300 break-all select-all flex-1">
+                    {justCreatedToken.key}
+                  </code>
+                  <button
+                    onClick={() => copyToClipboard(justCreatedToken.key, "newToken")}
+                    className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white transition"
+                    title="Salin Token"
+                  >
+                    {copiedText === "newToken" ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={handleEnterDashboard}
+                className="w-full py-3 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-2"
+              >
+                Masuk ke Dashboard Saya Sekarang
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Tabs Switch: Login vs Register */}
+              <div className="grid grid-cols-2 p-1 bg-slate-950/70 border border-slate-800 rounded-xl mb-6">
+                <button
+                  onClick={() => {
+                    setLoginMode("login");
+                    setAuthError("");
+                  }}
+                  className={`py-2 text-xs font-semibold rounded-lg transition ${
+                    loginMode === "login"
+                      ? "bg-slate-800 text-amber-400 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Masuk via Token
+                </button>
+                <button
+                  onClick={() => {
+                    setLoginMode("register");
+                    setAuthError("");
+                  }}
+                  className={`py-2 text-xs font-semibold rounded-lg transition ${
+                    loginMode === "register"
+                      ? "bg-slate-800 text-amber-400 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Buat Token Baru
+                </button>
+              </div>
+
+              {/* Error Message */}
+              {authError && (
+                <div className="p-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-2.5 text-xs text-red-300">
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                  <span>{authError}</span>
+                </div>
+              )}
+
+              {/* Mode 1: Login via Token */}
+              {loginMode === "login" ? (
+                <form onSubmit={handleManualLogin} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                      Ketik Token Unik Kamu
+                    </label>
+                    <div className="relative">
+                      <Key className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                      <input
+                        type="text"
+                        placeholder="kalss_live_4848jdjdja8fg8g8g8hg..."
+                        value={inputToken}
+                        onChange={(e) => setInputToken(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700/80 focus:border-amber-500 rounded-xl text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono transition"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingAuth}
+                    className="w-full py-3 px-4 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-2"
+                  >
+                    Buka Dashboard Saya
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+
+                  <div className="pt-2 text-center">
+                    <p className="text-[11px] text-slate-500">
+                      Mau uji coba cepat? Pakai token demo:{" "}
+                      <button
+                        type="button"
+                        onClick={() => setInputToken("kalss_live_demo_key_57")}
+                        className="text-amber-400 hover:underline font-mono"
+                      >
+                        kalss_live_demo_key_57
+                      </button>
+                    </p>
+                  </div>
+                </form>
+              ) : (
+                /* Mode 2: Register New Token */
+                <form onSubmit={handleRegisterToken} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                      Nama Game Roblox Kamu
+                    </label>
+                    <div className="relative">
+                      <Gamepad2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="misal: Donasi Efek Koin Kalss"
+                        value={regGameName}
+                        onChange={(e) => setRegGameName(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700/80 focus:border-amber-500 rounded-xl text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500 transition"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                      Username Roblox Kamu <span className="text-slate-500 font-normal">(Opsional)</span>
+                    </label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                      <input
+                        type="text"
+                        placeholder="misal: haikalsmamonto04"
+                        value={regRobloxUser}
+                        onChange={(e) => setRegRobloxUser(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700/80 focus:border-amber-500 rounded-xl text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500 transition"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Foto profil avatar Roblox kamu akan otomatis ditampilkan di dashboard.
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingAuth}
+                    className="w-full py-3 px-4 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-2"
+                  >
+                    {isSubmittingAuth ? "Membuat Kunci..." : "Generate Token Kalss Saya"}
+                    <Sparkles className="w-4 h-4" />
+                  </button>
+                </form>
+              )}
+            </>
+          )}
+
+          <div className="mt-8 pt-5 border-t border-slate-800 text-center">
+            <span className="text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              Sistem Terisolasi & Aman • Multi-Game Dedicated
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // LOGGED IN DASHBOARD
+  const currentKey = currentUser.key;
+  const saweriaUrl = `${origin}/api/webhook/saweria?key=${currentKey}`;
+  const bagiBagiUrl = `${origin}/api/webhook/bagibagi?key=${currentKey}`;
+  const sociabuzzUrl = `${origin}/api/webhook/sociabuzz?key=${currentKey}`;
 
   return (
-    <main className="min-h-screen pb-16 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
-      {/* Top Bar */}
-      <header className="border-b border-cyan-900/30 bg-slate-950/80 backdrop-blur sticky top-0 z-50 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="min-h-screen bg-slate-950 text-slate-100 antialiased">
+      {/* Top Navigation */}
+      <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-amber-400 p-[2px] shadow-lg shadow-cyan-500/20">
-              <div className="h-full w-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-                <Coins className="h-5 w-5 text-amber-400" />
-              </div>
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <Coins className="w-5 h-5 text-slate-950" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-bold text-lg text-white tracking-wide">
+                <span className="font-black text-sm tracking-tight text-white">
                   KALSS DONATION GATEWAY
-                </h1>
-                <span className="px-2 py-0.5 text-xs rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono">
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
                   v2.0 Real
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
-                Bridge Saweria, BagiBagi, &amp; Sociabuzz ke Game Roblox
+              <p className="text-[11px] text-slate-400">
+                Bridge Saweria, BagiBagi, & Sociabuzz ke Game Roblox
               </p>
             </div>
           </div>
 
+          {/* User Profile & Token Info */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
-              <Radio className="h-3.5 w-3.5 animate-pulse" />
-              <span>Roblox Worker Ready</span>
+            <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800">
+              {currentUser.avatarUrl ? (
+                <img
+                  src={currentUser.avatarUrl}
+                  alt="Avatar"
+                  className="w-7 h-7 rounded-full border border-amber-500/40 bg-slate-950 object-cover"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center">
+                  <Gamepad2 className="w-4 h-4 text-amber-400" />
+                </div>
+              )}
+              <div className="text-left">
+                <div className="text-xs font-bold text-slate-200">
+                  {currentUser.robloxUsername || currentUser.name}
+                </div>
+                <div className="text-[10px] font-mono text-amber-400/80">
+                  {currentKey.substring(0, 14)}...{currentKey.substring(currentKey.length - 4)}
+                </div>
+              </div>
             </div>
+
             <button
-              onClick={fetchStats}
-              className="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition"
-              title="Refresh Data"
+              onClick={() => copyToClipboard(currentKey, "activeToken")}
+              className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition"
+              title="Salin Token Saya"
             >
-              <RefreshCw className="h-4 w-4" />
+              {copiedText === "activeToken" ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-semibold transition"
+              title="Ganti Token / Keluar"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Keluar</span>
             </button>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 pt-8 space-y-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 shadow-xl relative overflow-hidden group">
-            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-amber-500/5 rounded-full blur-xl group-hover:bg-amber-500/10 transition" />
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-medium uppercase tracking-wider">Total Donasi Real</span>
-              <Coins className="h-4 w-4 text-amber-400" />
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Metric Cards (Scoped strictly to this token!) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Card 1: Total Donasi */}
+          <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800 relative overflow-hidden backdrop-blur-sm">
+            <div className="absolute top-4 right-4 p-2 rounded-xl bg-amber-500/10 text-amber-400">
+              <Coins className="w-5 h-5" />
             </div>
-            <div className="text-2xl font-black text-amber-400 tracking-tight">
-              {formatRupiah(stats.totalAmount)}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">Akumulasi donasi masuk</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Total Donasi Real Game Ini
+            </p>
+            <p className="text-2xl sm:text-3xl font-black text-amber-400 mt-2">
+              Rp {stats.totalAmount.toLocaleString("id-ID")}
+            </p>
+            <p className="text-xs text-slate-500 mt-1">Akumulasi donasi masuk yang sukses</p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 shadow-xl relative overflow-hidden group">
-            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-cyan-500/5 rounded-full blur-xl group-hover:bg-cyan-500/10 transition" />
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-medium uppercase tracking-wider">Total Transaksi</span>
-              <Zap className="h-4 w-4 text-cyan-400" />
+          {/* Card 2: Total Transaksi */}
+          <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800 relative overflow-hidden backdrop-blur-sm">
+            <div className="absolute top-4 right-4 p-2 rounded-xl bg-blue-500/10 text-blue-400">
+              <Zap className="w-5 h-5" />
             </div>
-            <div className="text-2xl font-black text-white tracking-tight">
-              {stats.totalCount} <span className="text-sm font-normal text-slate-400">donasi</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1">Diproses ke dalam game</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Total Transaksi
+            </p>
+            <p className="text-2xl sm:text-3xl font-black text-blue-400 mt-2">
+              {stats.totalCount}{" "}
+              <span className="text-sm font-normal text-slate-400">donasi</span>
+            </p>
+            <p className="text-xs text-slate-500 mt-1">Diproses dan memicu efek koin di map</p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 shadow-xl relative overflow-hidden group">
-            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl group-hover:bg-indigo-500/10 transition" />
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-medium uppercase tracking-wider">Antrean Pending</span>
-              <Clock className="h-4 w-4 text-indigo-400" />
+          {/* Card 3: Status Worker */}
+          <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800 relative overflow-hidden backdrop-blur-sm">
+            <div className="absolute top-4 right-4 p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
+              <Radio className="w-5 h-5 animate-pulse" />
             </div>
-            <div className="text-2xl font-black text-indigo-300 tracking-tight">
-              {stats.pendingCount}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">Menunggu Roblox jemput</p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 shadow-xl relative overflow-hidden group">
-            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl group-hover:bg-emerald-500/10 transition" />
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-medium uppercase tracking-wider">Game / API Key</span>
-              <Key className="h-4 w-4 text-emerald-400" />
-            </div>
-            <div className="text-2xl font-black text-white tracking-tight">
-              {stats.keyCount}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">Game terdaftar aktif</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Status Roblox Worker
+            </p>
+            <p className="text-2xl sm:text-3xl font-black text-emerald-400 mt-2 flex items-center gap-2">
+              Siap Jemput
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              {stats.pendingCount} transaksi dalam antrean pending
+            </p>
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+        {/* Tab Controls */}
+        <div className="flex border-b border-slate-800 space-x-2">
           <button
-            onClick={() => setActiveTab("keys")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition ${
-              activeTab === "keys"
-                ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+            onClick={() => setActiveTab("webhook")}
+            className={`py-3 px-4 font-semibold text-xs border-b-2 flex items-center gap-2 transition ${
+              activeTab === "webhook"
+                ? "border-amber-400 text-amber-400"
+                : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
-            <Key className="h-4 w-4" />
-            <span>Pengaturan API &amp; Webhook</span>
+            <Key className="w-4 h-4" />
+            Pengaturan API & Webhook
           </button>
-
           <button
             onClick={() => setActiveTab("simulator")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition ${
+            className={`py-3 px-4 font-semibold text-xs border-b-2 flex items-center gap-2 transition ${
               activeTab === "simulator"
-                ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                ? "border-amber-400 text-amber-400"
+                : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
-            <Flame className="h-4 w-4 text-amber-400" />
-            <span>Simulator Uji Coba Efek</span>
+            <Flame className="w-4 h-4" />
+            Simulator Uji Coba Efek
           </button>
-
           <button
             onClick={() => setActiveTab("logs")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition ${
+            className={`py-3 px-4 font-semibold text-xs border-b-2 flex items-center gap-2 transition ${
               activeTab === "logs"
-                ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                ? "border-amber-400 text-amber-400"
+                : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
-            <Clock className="h-4 w-4" />
-            <span>Riwayat Transaksi Live</span>
+            <Clock className="w-4 h-4" />
+            Riwayat Transaksi Live ({donations.length})
           </button>
         </div>
 
-        {/* TAB 1: API KEYS & WEBHOOKS */}
-        {activeTab === "keys" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left: Key List & Creation */}
-            <div className="lg:col-span-1 space-y-4">
-              <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-semibold text-white text-sm flex items-center gap-2">
-                    <Key className="h-4 w-4 text-cyan-400" />
-                    <span>Daftar API Key</span>
-                  </h2>
-                </div>
+        {/* TAB 1: WEBHOOK & ROBLOX CONFIG */}
+        {activeTab === "webhook" && (
+          <div className="space-y-6">
+            {/* Webhook URLs Box */}
+            <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-5">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-amber-400" />
+                  URL Webhook Payment Gateway (Saweria, BagiBagi, Sociabuzz)
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Salin URL di bawah ini ke menu Webhook di dashboard akun pembayaran kamu. Uang tetap 100% masuk ke rekening/akunmu!
+                </p>
+              </div>
 
-                <div className="space-y-2">
-                  {keys.map((k) => (
-                    <button
-                      key={k.key}
-                      onClick={() => setSelectedKey(k.key)}
-                      className={`w-full text-left p-3 rounded-xl border transition ${
-                        selectedKey === k.key
-                          ? "bg-cyan-950/40 border-cyan-500/50 text-white"
-                          : "bg-slate-950/40 border-slate-800 text-slate-300 hover:border-slate-700"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-xs truncate">{k.name}</span>
-                        {selectedKey === k.key && (
-                          <span className="h-2 w-2 rounded-full bg-cyan-400" />
-                        )}
-                      </div>
-                      <div className="font-mono text-[11px] text-slate-400 truncate">
-                        {k.key}
-                      </div>
-                      <div className="text-[10px] text-slate-500 mt-2 flex justify-between">
-                        <span>{k.donationCount} donasi</span>
-                        <span className="text-amber-400/90 font-medium">
-                          {formatRupiah(k.totalAmount)}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+              {/* Saweria */}
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-400" />
+                    Saweria Webhook URL
+                  </span>
+                  <button
+                    onClick={() => copyToClipboard(saweriaUrl, "saweria")}
+                    className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 transition"
+                  >
+                    {copiedText === "saweria" ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                    Salin URL
+                  </button>
                 </div>
+                <code className="text-xs font-mono text-slate-300 break-all select-all block bg-slate-900/50 p-2.5 rounded-lg border border-slate-800/80">
+                  {saweriaUrl}
+                </code>
+              </div>
 
-                {/* Create Key Form */}
-                <form onSubmit={handleCreateKey} className="pt-2 border-t border-slate-800">
-                  <label className="text-xs text-slate-400 block mb-1">
-                    Tambah Game / Project Baru
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Nama Game (mis. Game 2)"
-                      value={newKeyName}
-                      onChange={(e) => setNewKeyName(e.target.value)}
-                      className="flex-1 bg-slate-950 border border-slate-700 text-white text-xs rounded-xl px-3 py-2 outline-none focus:border-cyan-500"
-                    />
-                    <button
-                      type="submit"
-                      disabled={creatingKey}
-                      className="px-3 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium flex items-center gap-1 transition"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      <span>Buat</span>
-                    </button>
-                  </div>
-                </form>
+              {/* BagiBagi */}
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-sky-400 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-sky-400" />
+                    BagiBagi Webhook URL
+                  </span>
+                  <button
+                    onClick={() => copyToClipboard(bagiBagiUrl, "bagibagi")}
+                    className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 transition"
+                  >
+                    {copiedText === "bagibagi" ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                    Salin URL
+                  </button>
+                </div>
+                <code className="text-xs font-mono text-slate-300 break-all select-all block bg-slate-900/50 p-2.5 rounded-lg border border-slate-800/80">
+                  {bagiBagiUrl}
+                </code>
+              </div>
+
+              {/* Sociabuzz */}
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-indigo-400 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-400" />
+                    Sociabuzz Webhook URL
+                  </span>
+                  <button
+                    onClick={() => copyToClipboard(sociabuzzUrl, "sociabuzz")}
+                    className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 transition"
+                  >
+                    {copiedText === "sociabuzz" ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                    Salin URL
+                  </button>
+                </div>
+                <code className="text-xs font-mono text-slate-300 break-all select-all block bg-slate-900/50 p-2.5 rounded-lg border border-slate-800/80">
+                  {sociabuzzUrl}
+                </code>
               </div>
             </div>
 
-            {/* Right: Webhook URLs & Roblox Config */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Webhook URLs for payment platforms */}
-              <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-5">
+            {/* Roblox Config Box */}
+            <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold text-white text-sm flex items-center gap-2">
-                    <Globe className="h-4 w-4 text-emerald-400" />
-                    <span>Webhook Payment Gateway (Saweria, BagiBagi, Sociabuzz)</span>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-amber-400" />
+                    Pasang di Roblox Studio (KalssDonateRealConfig)
                   </h3>
                   <p className="text-xs text-slate-400 mt-1">
-                    Salin URL webhook di bawah ini ke menu Webhook di dashboard payment kamu:
+                    Buka <code className="text-amber-400">KalssDonateRealConfig</code> di game Roblox kamu dan isi bagian Backend:
                   </p>
                 </div>
-
-                <div className="space-y-4">
-                  {/* Saweria */}
-                  <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-amber-400 flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-amber-400" />
-                        Saweria Webhook URL
-                      </span>
-                      <button
-                        onClick={() => copyToClipboard(getWebhookUrl("saweria"), "saweria")}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] transition"
-                      >
-                        {copiedText === "saweria" ? (
-                          <>
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                            <span className="text-emerald-400">Tersalin!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-3.5 w-3.5" />
-                            <span>Salin URL</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    <div className="font-mono text-xs text-slate-300 break-all bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                      {getWebhookUrl("saweria")}
-                    </div>
-                  </div>
-
-                  {/* BagiBagi */}
-                  <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-cyan-400 flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-cyan-400" />
-                        BagiBagi Webhook URL
-                      </span>
-                      <button
-                        onClick={() => copyToClipboard(getWebhookUrl("bagibagi"), "bagibagi")}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] transition"
-                      >
-                        {copiedText === "bagibagi" ? (
-                          <>
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                            <span className="text-emerald-400">Tersalin!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-3.5 w-3.5" />
-                            <span>Salin URL</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    <div className="font-mono text-xs text-slate-300 break-all bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                      {getWebhookUrl("bagibagi")}
-                    </div>
-                  </div>
-
-                  {/* Sociabuzz */}
-                  <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-indigo-400 flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-indigo-400" />
-                        Sociabuzz Webhook URL
-                      </span>
-                      <button
-                        onClick={() => copyToClipboard(getWebhookUrl("sociabuzz"), "sociabuzz")}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] transition"
-                      >
-                        {copiedText === "sociabuzz" ? (
-                          <>
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                            <span className="text-emerald-400">Tersalin!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-3.5 w-3.5" />
-                            <span>Salin URL</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    <div className="font-mono text-xs text-slate-300 break-all bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                      {getWebhookUrl("sociabuzz")}
-                    </div>
-                  </div>
-                </div>
+                <button
+                  onClick={() =>
+                    copyToClipboard(
+                      `Config.Backend = {\n\tEnabled = true,\n\tWorkerBaseUrl = "${origin}",\n\tApiKey = "${currentKey}",\n\tPollInterval = 3,\n}`,
+                      "robloxConfig"
+                    )
+                  }
+                  className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 transition"
+                >
+                  {copiedText === "robloxConfig" ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                  Salin Konfigurasi
+                </button>
               </div>
 
-              {/* Roblox Studio Setup Snippet */}
-              <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-white text-sm flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-cyan-400" />
-                      <span>Pasang di Roblox Studio (KalssDonateRealConfig)</span>
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Buka <code>KalssDonateRealConfig</code> di ReplicatedStorage dan isi bagian Backend:
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const code = `Config.Backend = {\n\tEnabled = true,\n\tWorkerBaseUrl = "${origin || "https://kalss-donate.vercel.app"}",\n\tApiKey = "${selectedKey || "YOUR_API_KEY"}",\n\tPollInterval = 3,\n}`;
-                      copyToClipboard(code, "robloxCode");
-                    }}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-600/20 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-600/30 text-xs transition font-medium"
-                  >
-                    {copiedText === "robloxCode" ? (
-                      <>
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                        <span className="text-emerald-400">Kode Tersalin!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3.5 w-3.5" />
-                        <span>Salin Konfigurasi</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-cyan-200 overflow-x-auto">
-                  <pre>{`-- Di ReplicatedStorage.KalssDonateRealRS.KalssDonateRealConfig:
-
+              <pre className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-emerald-400 overflow-x-auto">
+{`-- Di ReplicatedStorage.KalssDonateRealRS.KalssDonateRealConfig:
 Config.Backend = {
     Enabled = true,
-    WorkerBaseUrl = "${origin || "https://kalss-donate.vercel.app"}",
-    ApiKey = "${selectedKey || "YOUR_API_KEY"}",
+    WorkerBaseUrl = "${origin}",
+    ApiKey = "${currentKey}",
     PollInterval = 3,
-}`}</pre>
-                </div>
-              </div>
+}`}
+              </pre>
             </div>
           </div>
         )}
 
-        {/* TAB 2: SIMULATOR UJI COBA */}
+        {/* TAB 2: SIMULATOR */}
         {activeTab === "simulator" && (
-          <div className="max-w-3xl mx-auto p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
+          <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 max-w-2xl mx-auto space-y-6">
             <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Flame className="h-5 w-5 text-amber-400" />
-                <span>Simulator Donasi Instan ke Roblox</span>
-              </h2>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Flame className="w-5 h-5 text-amber-400" />
+                Simulator Donasi Real Instan
+              </h3>
               <p className="text-xs text-slate-400 mt-1">
-                Kirim donasi virtual langsung ke game kamu tanpa harus bayar uang beneran.
-                Efek (Nuke / Smite / BlackHole) akan otomatis meledak di Roblox Studio dalam ~3 detik!
+                Kirim donasi simulasi ke token game kamu untuk menguji efek Nuke, Smite, Meteor, atau Black Hole di Roblox Studio tanpa bayar uang asli!
               </p>
             </div>
 
-            {simStatus && (
-              <div className="p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-cyan-400 shrink-0" />
-                <span>{simStatus}</span>
+            {/* Quick Presets */}
+            <div>
+              <label className="text-xs font-semibold text-slate-400 block mb-2">
+                Pilih Preset Nominal Efek:
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { name: "Smite", amount: 50000 },
+                  { name: "Nuke", amount: 100000 },
+                  { name: "Meteor", amount: 250000 },
+                  { name: "Black Hole", amount: 1000000 },
+                ].map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    onClick={() => {
+                      setSimAmount(preset.amount);
+                      setSimMessage(`Efek ${preset.name} Rp ${preset.amount.toLocaleString()}! 🔥`);
+                    }}
+                    className={`p-3 rounded-xl border text-left transition ${
+                      simAmount === preset.amount
+                        ? "bg-amber-500/10 border-amber-500/40 text-amber-400"
+                        : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
+                    }`}
+                  >
+                    <div className="text-xs font-bold">{preset.name}</div>
+                    <div className="text-[11px] text-slate-400">
+                      Rp {preset.amount.toLocaleString()}
+                    </div>
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
 
-            <form onSubmit={handleSimulateDonation} className="space-y-4">
+            {/* Form Fields */}
+            <div className="space-y-4">
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Target API Key Game</label>
-                <select
-                  value={selectedKey}
-                  onChange={(e) => setSelectedKey(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 text-white text-xs rounded-xl px-3 py-2.5 outline-none focus:border-cyan-500"
-                >
-                  {keys.map((k) => (
-                    <option key={k.key} value={k.key}>
-                      {k.name} ({k.key})
-                    </option>
-                  ))}
-                </select>
+                <label className="text-xs font-semibold text-slate-400 block mb-1">
+                  Username Donatur di Roblox
+                </label>
+                <input
+                  type="text"
+                  value={simDonor}
+                  onChange={(e) => setSimDonor(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl text-xs text-slate-100 focus:outline-none"
+                />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Nominal Donasi &amp; Efek</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
-                  {[
-                    { label: "Nuke (Roket)", amount: 250 },
-                    { label: "Smite (Palu Giant)", amount: 500 },
-                    { label: "Endowment (Sayap)", amount: 1000 },
-                    { label: "BlackHole (Lubang)", amount: 2000 },
-                  ].map((p) => (
-                    <button
-                      key={p.amount}
-                      type="button"
-                      onClick={() => setSimAmount(p.amount)}
-                      className={`p-2.5 rounded-xl border text-xs text-left transition ${
-                        simAmount === p.amount
-                          ? "bg-amber-500/15 border-amber-500/40 text-amber-300 font-medium"
-                          : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
-                      }`}
-                    >
-                      <div className="text-[10px] text-slate-400">{p.label}</div>
-                      <div className="font-bold">{p.amount.toLocaleString()} Real</div>
-                    </button>
-                  ))}
-                </div>
+                <label className="text-xs font-semibold text-slate-400 block mb-1">
+                  Nominal Donasi (Rupiah)
+                </label>
                 <input
                   type="number"
                   value={simAmount}
                   onChange={(e) => setSimAmount(Number(e.target.value))}
-                  className="w-full bg-slate-950 border border-slate-700 text-white text-xs rounded-xl px-3 py-2.5 outline-none focus:border-cyan-500 font-mono"
-                  placeholder="Nominal angka..."
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl text-xs text-slate-100 focus:outline-none"
                 />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1">Nama Donatur</label>
-                  <input
-                    type="text"
-                    value={simDonor}
-                    onChange={(e) => setSimDonor(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 text-white text-xs rounded-xl px-3 py-2.5 outline-none focus:border-cyan-500"
-                    placeholder="Nama di papan donasi"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1">Target Roblox Player (Opsional)</label>
-                  <input
-                    type="text"
-                    value={simTarget}
-                    onChange={(e) => setSimTarget(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 text-white text-xs rounded-xl px-3 py-2.5 outline-none focus:border-cyan-500"
-                    placeholder="Username pemain di dalam game"
-                  />
-                </div>
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Pesan Donasi</label>
-                <textarea
-                  rows={2}
+                <label className="text-xs font-semibold text-slate-400 block mb-1">
+                  Pesan Donatur
+                </label>
+                <input
+                  type="text"
                   value={simMessage}
                   onChange={(e) => setSimMessage(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 text-white text-xs rounded-xl p-3 outline-none focus:border-cyan-500"
-                  placeholder="Teks ucapan donatur yang tampil di layar..."
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl text-xs text-slate-100 focus:outline-none"
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={simLoading}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/20 transition disabled:opacity-50"
-              >
-                <Send className="h-4 w-4" />
-                <span>{simLoading ? "Mengirim Donasi..." : "Kirim Donasi Uji Coba ke Roblox"}</span>
-              </button>
-            </form>
+              <div>
+                <label className="text-xs font-semibold text-slate-400 block mb-1">
+                  Penyedia Platform
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["saweria", "bagibagi", "sociabuzz"] as const).map((plat) => (
+                    <button
+                      key={plat}
+                      type="button"
+                      onClick={() => setSimPlatform(plat)}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold uppercase transition ${
+                        simPlatform === plat
+                          ? "bg-slate-800 border-amber-500 text-amber-400"
+                          : "bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      {plat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {simStatus && (
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 font-medium">
+                {simStatus}
+              </div>
+            )}
+
+            <button
+              onClick={handleSimulate}
+              disabled={simLoading}
+              className="w-full py-3.5 px-4 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-2"
+            >
+              <Send className="w-4 h-4" />
+              {simLoading ? "Mengirim ke Antrean..." : "Kirim Test Donasi Sekarang"}
+            </button>
           </div>
         )}
 
-        {/* TAB 3: LIVE LOGS */}
+        {/* TAB 3: TRANSACTION LOGS */}
         {activeTab === "logs" && (
           <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-semibold text-white text-sm flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-cyan-400" />
-                  <span>Riwayat Donasi Real-Time</span>
-                </h2>
-                <p className="text-xs text-slate-400">
-                  Data transaksi yang masuk dari Webhook atau Simulator
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-amber-400" />
+                  Riwayat Transaksi Khusus Game Kamu
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Hanya menampilkan donasi yang terhubung ke token kamu.
                 </p>
               </div>
               <button
-                onClick={fetchStats}
-                className="text-xs text-cyan-400 hover:underline flex items-center gap-1"
+                onClick={() => fetchStats(currentKey)}
+                className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 transition"
               >
-                <RefreshCw className="h-3 w-3" />
-                <span>Refresh</span>
+                <RefreshCw className="w-3.5 h-3.5" />
+                Refresh
               </button>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-400">
-                    <th className="py-2.5 px-3">Waktu</th>
-                    <th className="py-2.5 px-3">Donatur</th>
-                    <th className="py-2.5 px-3">Nominal</th>
-                    <th className="py-2.5 px-3">Pesan</th>
-                    <th className="py-2.5 px-3">Platform</th>
-                    <th className="py-2.5 px-3">Status di Roblox</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {donations.length === 0 ? (
+            {donations.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 text-xs">
+                Belum ada transaksi untuk token ini. Coba kirim simulasi di tab Simulator!
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="text-[11px] text-slate-400 uppercase tracking-wider border-b border-slate-800 bg-slate-950/40">
                     <tr>
-                      <td colSpan={6} className="py-6 text-center text-slate-500">
-                        Belum ada donasi masuk. Coba lakukan donasi uji coba di tab Simulator!
-                      </td>
+                      <th className="py-3 px-4">Waktu</th>
+                      <th className="py-3 px-4">Donatur</th>
+                      <th className="py-3 px-4">Nominal</th>
+                      <th className="py-3 px-4">Pesan</th>
+                      <th className="py-3 px-4">Platform</th>
+                      <th className="py-3 px-4">Status</th>
                     </tr>
-                  ) : (
-                    donations.map((d) => (
-                      <tr key={d.id} className="hover:bg-slate-900/40">
-                        <td className="py-3 px-3 text-slate-400 font-mono text-[11px]">
-                          {new Date(d.createdAt).toLocaleTimeString("id-ID")}
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {donations.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-800/30 transition">
+                        <td className="py-3 px-4 font-mono text-[11px] text-slate-400">
+                          {new Date(item.createdAt).toLocaleTimeString("id-ID", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })}
                         </td>
-                        <td className="py-3 px-3 font-medium text-white">{d.donorName}</td>
-                        <td className="py-3 px-3 font-semibold text-amber-400">
-                          {formatRupiah(d.amount)}
+                        <td className="py-3 px-4 font-bold text-slate-200">
+                          {item.donorName || item.username}
                         </td>
-                        <td className="py-3 px-3 text-slate-300 max-w-xs truncate">
-                          &quot;{d.message}&quot;
+                        <td className="py-3 px-4 font-mono font-bold text-amber-400">
+                          Rp {item.amount.toLocaleString("id-ID")}
                         </td>
-                        <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] uppercase font-mono font-medium bg-slate-800 text-slate-300 border border-slate-700">
-                            {d.platform}
+                        <td className="py-3 px-4 text-slate-300 max-w-xs truncate">
+                          {item.message || "-"}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="capitalize px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-300 border border-slate-700">
+                            {item.platform}
                           </span>
                         </td>
-                        <td className="py-3 px-3">
-                          {d.status === "done" && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                              ✓ Selesai Terkirim
-                            </span>
-                          )}
-                          {d.status === "processing" && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                              ⏳ Sedang Dijemput
-                            </span>
-                          )}
-                          {d.status === "pending" && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
-                              ○ Di Antrean
-                            </span>
-                          )}
+                        <td className="py-3 px-4">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                              item.status === "done"
+                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                : item.status === "processing"
+                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                            }`}
+                          >
+                            {item.status}
+                          </span>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
