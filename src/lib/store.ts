@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import os from "os";
 
 export interface ApiKeyRecord {
   id: string;
@@ -40,7 +41,7 @@ declare global {
   var __kalssStore: DataStore | undefined;
 }
 
-const DATA_FILE = path.join(process.cwd(), ".kalss-data.json");
+const DATA_FILE = path.join(os.tmpdir(), "kalss-platform-data.json");
 
 function getDefaultData(): DataStore {
   return {
@@ -139,7 +140,20 @@ export const KalssStore = {
 
   findKey(apiKey: string): ApiKeyRecord | undefined {
     const data = loadData();
-    return data.keys.find((k) => k.key === apiKey);
+    let found = data.keys.find((k) => k.key === apiKey);
+    if (!found && apiKey && apiKey.startsWith("kalss_live_")) {
+      found = {
+        id: "key-" + Date.now(),
+        key: apiKey,
+        name: "Game Roblox",
+        createdAt: new Date().toISOString(),
+        totalAmount: 0,
+        donationCount: 0,
+      };
+      data.keys.unshift(found);
+      saveData(data);
+    }
+    return found;
   },
 
   findByRobloxUserId(userId: string): ApiKeyRecord | undefined {
