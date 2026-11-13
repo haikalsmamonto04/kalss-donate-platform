@@ -244,28 +244,73 @@ export default function DashboardPage() {
   // LOGIN & REGISTRATION GATE
   if (!authToken || !currentUser) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden">
-        {/* Background Gradients */}
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="min-h-screen w-full relative overflow-hidden bg-stage">
+        <div className="absolute inset-0 grid-overlay pointer-events-none" />
+        <div className="absolute -top-48 -left-48 w-[36rem] h-[36rem] bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-48 -right-48 w-[36rem] h-[36rem] bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Modal / Card */}
-        <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-3xl p-6 md:p-8 backdrop-blur-xl shadow-2xl relative z-10">
-          {/* Logo & Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg shadow-amber-500/20 mb-4">
-              <Coins className="w-8 h-8 text-slate-950" />
+        <div className="relative z-10 min-h-screen w-full flex items-center justify-center p-4 sm:p-6 lg:p-10">
+          <div className="w-full max-w-5xl grid lg:grid-cols-[1.05fr_1fr] rounded-[2rem] overflow-hidden card-glass border border-white/5 fade-up">
+            {/* LEFT — BRAND PANEL */}
+            <div className="hidden lg:flex flex-col justify-between p-10 xl:p-12 bg-[#0b0d1a]/70 relative overflow-hidden">
+              <div className="absolute -top-24 -right-24 w-80 h-80 border border-amber-500/10 rounded-full" />
+              <div className="absolute -top-10 -right-10 w-44 h-44 border border-amber-500/20 rounded-full" />
+              <div className="absolute bottom-10 -left-28 w-64 h-64 border border-white/5 rounded-full" />
+              <div className="flex items-center gap-3 relative">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                  <Coins className="w-6 h-6 text-slate-950" />
+                </div>
+                <div>
+                  <div className="font-black text-lg tracking-tight text-white leading-none">KALSS STUDIO</div>
+                  <div className="text-[10px] font-semibold text-amber-400/90 tracking-[0.25em] uppercase mt-1">System License</div>
+                </div>
+              </div>
+              <div className="relative mt-14 space-y-6 max-w-md">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-amber-500/20 bg-amber-500/5 text-[10px] font-semibold tracking-[0.18em] text-amber-400 uppercase">
+                  <Sparkles className="w-3.5 h-3.5" /> Real Donation Gateway
+                </div>
+                <h1 className="text-4xl xl:text-[3.4rem] font-black tracking-tight leading-[1.04] text-white">
+                  Donasi <span className="text-gold-gradient">Real</span><br />
+                  yang <span className="text-gold-gradient">Meledakkan</span><br />
+                  Efek di Roblox
+                </h1>
+                <p className="text-sm text-slate-400 leading-relaxed">Platform jembatan resmi dari donatur nyata ke efek sinematik di game kamu — Nuke, Smite, Black Hole, hingga Endowment.</p>
+              </div>
+              <ul className="relative space-y-4 text-xs text-slate-300 mt-10">
+                <li className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0"><Zap className="w-4 h-4 text-amber-400" /></div>
+                  <span><b className="text-white">Efek Real-Time</b> — Eksekusi instan dari donasi ke efek sinematik</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center shrink-0"><Globe className="w-4 h-4 text-sky-400" /></div>
+                  <span><b className="text-white">Webhook Pembayaran</b> — BagiBagi, Sociabuzz & payment link lainnya</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0"><ShieldCheck className="w-4 h-4 text-emerald-400" /></div>
+                  <span><b className="text-white">Aman & Terisolasi</b> — Akses berlisensi, multi-game, terkontrol</span>
+                </li>
+              </ul>
+              <div className="relative flex items-center justify-between border-t border-white/5 pt-6 mt-10">
+                <span className="flex items-center gap-2 text-[10px] text-slate-500 uppercase tracking-wider"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot" /> All systems operational</span>
+                <span className="text-[10px] text-slate-600">© KALSS STUDIO</span>
+              </div>
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-2">
-              KALSS STUDIO
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                System License
-              </span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-1.5">
-              Platform Donasi Real — Game Roblox Kalss Studio
-            </p>
-          </div>
+            {/* RIGHT — AUTH PANEL */}
+            <div className="p-8 sm:p-10 flex flex-col justify-center bg-[#0d0f1f]/40">
+              <div className="max-w-sm w-full mx-auto space-y-7">
+                <div className="flex lg:hidden items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                    <Coins className="w-5 h-5 text-slate-950" />
+                  </div>
+                  <div>
+                    <div className="font-black text-base tracking-tight text-white leading-none">KALSS STUDIO</div>
+                    <div className="text-[9px] font-semibold text-amber-400/90 tracking-[0.22em] uppercase mt-0.5">System License</div>
+                  </div>
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black tracking-tight text-white">Masuk ke Dashboard</h2>
+                  <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">Kelola lisensi, webhook, dan riwayat donasi Real di satu dashboard.</p>
+                </div>
 
           {/* Just Created Token Success View */}
           {justCreatedToken ? (
@@ -375,11 +420,11 @@ export default function DashboardPage() {
             </>
           )}
 
-          <div className="mt-8 pt-5 border-t border-slate-800 text-center">
-            <span className="text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              Sistem Terisolasi & Aman • Multi-Game Dedicated
-            </span>
+          <div className="mt-8 pt-6 border-t border-white/5 text-center text-[10px] uppercase tracking-[0.18em] text-slate-600">
+            © KALSS STUDIO · System License
+          </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -404,14 +449,14 @@ export default function DashboardPage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-black text-sm tracking-tight text-white">
-                  KALSS DONATION GATEWAY
+                  KALSS STUDIO
                 </span>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
                   System License
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Bridge Donasi Real ke Game Roblox
+                Platform Donasi Real — Game Roblox Kalss Studio
               </p>
             </div>
           </div>
@@ -470,7 +515,7 @@ export default function DashboardPage() {
         {/* Metric Cards (Scoped strictly to this token!) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Card 1: Total Donasi */}
-          <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800 relative overflow-hidden backdrop-blur-sm">
+          <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800 relative overflow-hidden backdrop-blur-sm transition hover:border-slate-700 hover:-translate-y-0.5">
             <div className="absolute top-4 right-4 p-2 rounded-xl bg-amber-500/10 text-amber-400">
               <Coins className="w-5 h-5" />
             </div>
@@ -484,7 +529,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Card 2: Total Transaksi */}
-          <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800 relative overflow-hidden backdrop-blur-sm">
+          <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800 relative overflow-hidden backdrop-blur-sm transition hover:border-slate-700 hover:-translate-y-0.5">
             <div className="absolute top-4 right-4 p-2 rounded-xl bg-blue-500/10 text-blue-400">
               <Zap className="w-5 h-5" />
             </div>
@@ -499,7 +544,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Card 3: Status Worker */}
-          <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800 relative overflow-hidden backdrop-blur-sm">
+          <div className="p-5 rounded-2xl bg-slate-900/50 border border-slate-800 relative overflow-hidden backdrop-blur-sm transition hover:border-slate-700 hover:-translate-y-0.5">
             <div className="absolute top-4 right-4 p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
               <Radio className="w-5 h-5 animate-pulse" />
             </div>

@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { KalssStore } from "@/lib/store";
 
 const CLIENT_ID = process.env.ROBLOX_CLIENT_ID || "5150396041540626436";
-const CLIENT_SECRET =
-  process.env.ROBLOX_CLIENT_SECRET ||
-  "RBX-Lgfcz-t37UWv7oc18ymkNAFCj6z_IH75PE_4JfsUxKs3JeepHEFTEUiV63DmqOMB";
+const CLIENT_SECRET = process.env.ROBLOX_CLIENT_SECRET || "";
+if (!CLIENT_SECRET) {
+  console.error("ROBLOX_CLIENT_SECRET is not set in environment variables");
+}
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");

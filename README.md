@@ -1,4 +1,4 @@
-# KALSS DONATION GATEWAY • Platform Donasi Real Roblox
+# KALSS STUDIO • System License — Platform Donasi Real Roblox
 
 Platform jembatan (bridge) donasi **Real** otomatis dari berbagai platform pembayaran Indonesia (**BagiBagi**, **Sociabuzz**, **Trakteer**, dan lainnya) langsung ke game Roblox **Kalss Studio**. Donasi masuk via webhook yang nanti akan disesuaikan dengan link donasi aktif.
 
