@@ -32,10 +32,11 @@ export async function POST(req: NextRequest) {
       serverId: body.serverId || "unknown",
       acknowledged: count,
     });
-  } catch (err: any) {
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "server_error";
     console.error("[POST /api/ack] Error:", err);
     return NextResponse.json(
-      { ok: false, error: err?.message || "server_error" },
+      { ok: false, error: errorMessage },
       { status: 500 }
     );
   }

@@ -25,9 +25,10 @@ export async function POST(req: NextRequest) {
       ok: true,
       keyRecord,
     });
-  } catch (err: any) {
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "server_error";
     return NextResponse.json(
-      { ok: false, error: err?.message || "server_error" },
+      { ok: false, error: errorMessage },
       { status: 500 }
     );
   }

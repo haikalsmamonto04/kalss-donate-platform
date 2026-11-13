@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Coins,
   Key,
   Flame,
   CheckCircle2,
   Copy,
-  ExternalLink,
   RefreshCw,
   Send,
   Zap,
@@ -16,7 +15,6 @@ import {
   Clock,
   Sparkles,
   LogOut,
-  User,
   ShieldCheck,
   Gamepad2,
   AlertCircle,
@@ -59,15 +57,21 @@ export default function DashboardPage() {
   // Auth state
   const [authToken, setAuthToken] = useState<string>("");
   const [currentUser, setCurrentUser] = useState<KeyRecord | null>(null);
-  const [authLoading, setAuthLoading] = useState<boolean>(true);
-  const [authError, setAuthError] = useState<string>("");
+  const [authLoading, setAuthLoading] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const tokenParam = new URLSearchParams(window.location.search).get("token");
+    const saved = localStorage.getItem("kalss_auth_token");
+    return !!(tokenParam || saved);
+  });
+  const [authError, setAuthError] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    const authErr = new URLSearchParams(window.location.search).get("auth_error");
+    return authErr ? "Gagal otentikasi dengan Roblox. Silakan coba lagi." : "";
+  });
 
   // Login form state
-  const [loginMode, setLoginMode] = useState<"login" | "register">("login");
   const [inputToken, setInputToken] = useState<string>("");
-  const [regGameName, setRegGameName] = useState<string>("");
-  const [regRobloxUser, setRegRobloxUser] = useState<string>("");
-  const [isSubmittingAuth, setIsSubmittingAuth] = useState<boolean>(false);
+  const [isSubmittingAuth] = useState<boolean>(false);
   const [justCreatedToken, setJustCreatedToken] = useState<KeyRecord | null>(null);
 
   // Dashboard data state
@@ -79,14 +83,14 @@ export default function DashboardPage() {
   });
   const [donations, setDonations] = useState<Donation[]>([]);
   const [activeTab, setActiveTab] = useState<"webhook" | "simulator" | "logs">("webhook");
-  const [origin, setOrigin] = useState<string>("");
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
   const [copiedText, setCopiedText] = useState<string | null>(null);
 
   // Simulator state
   const [simDonor, setSimDonor] = useState("Sultan_Roblox");
   const [simAmount, setSimAmount] = useState(100000);
   const [simMessage, setSimMessage] = useState("Efek Nuke buat gamemu! 🔥");
-  const [simPlatform, setSimPlatform] = useState<"saweria" | "bagibagi" | "sociabuzz">("saweria");
+  const [simPlatform, setSimPlatform] = useState<"real" | "bagibagi" | "sociabuzz">("real");
   const [simStatus, setSimStatus] = useState<string | null>(null);
   const [simLoading, setSimLoading] = useState(false);
 
@@ -97,61 +101,64 @@ export default function DashboardPage() {
     setTimeout(() => setCopiedText(null), 2000);
   };
 
-  // Check stored auth or OAuth token on load
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setOrigin(window.location.origin);
-      const urlParams = new URLSearchParams(window.location.search);
-      const tokenParam = urlParams.get("token");
-      const authErr = urlParams.get("auth_error");
-
-      if (authErr) {
-        setAuthError("Gagal otentikasi dengan Roblox. Silakan coba lagi.");
-        window.history.replaceState({}, document.title, window.location.pathname);
+  const fetchStats = useCallback(async (key: string) => {
+    try {
+      const res = await fetch(`/api/stats?key=${encodeURIComponent(key)}`);
+      const data = await res.json();
+      if (data.ok) {
+        setStats(data.stats);
+        setDonations(data.recent);
+        if (data.keyRecord) {
+          setCurrentUser(data.keyRecord);
+        }
       }
-
-      if (tokenParam) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-        verifyAndLogin(tokenParam);
-        return;
-      }
-
-      const saved = localStorage.getItem("kalss_auth_token");
-      if (saved) {
-        verifyAndLogin(saved);
-      } else {
-        setAuthLoading(false);
-      }
+    } catch (err) {
+      console.error("Fetch stats error:", err);
     }
   }, []);
 
-  const verifyAndLogin = async (key: string) => {
-    setAuthLoading(true);
-    setAuthError("");
-    try {
-      const res = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key }),
-      });
-      const data = await res.json();
-      if (data.ok && data.keyRecord) {
-        setAuthToken(data.keyRecord.key);
-        setCurrentUser(data.keyRecord);
-        localStorage.setItem("kalss_auth_token", data.keyRecord.key);
-        fetchStats(data.keyRecord.key);
-      } else {
-        localStorage.removeItem("kalss_auth_token");
-        setAuthError(data.error || "Token tidak valid");
-        setAuthToken("");
-        setCurrentUser(null);
+  const verifyAndLogin = useCallback(
+    async (key: string) => {
+      setAuthLoading(true);
+      setAuthError("");
+      try {
+        const res = await fetch("/api/auth/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key }),
+        });
+        const data = await res.json();
+        if (data.ok && data.keyRecord) {
+          setAuthToken(data.keyRecord.key);
+          setCurrentUser(data.keyRecord);
+          localStorage.setItem("kalss_auth_token", data.keyRecord.key);
+          fetchStats(data.keyRecord.key);
+        } else {
+          localStorage.removeItem("kalss_auth_token");
+          setAuthError(data.error || "Token tidak valid");
+          setAuthToken("");
+          setCurrentUser(null);
+        }
+      } catch {
+        setAuthError("Gagal menghubungi server");
+      } finally {
+        setAuthLoading(false);
       }
-    } catch {
-      setAuthError("Gagal menghubungi server");
-    } finally {
-      setAuthLoading(false);
-    }
-  };
+    },
+    [fetchStats]
+  );
+
+  // Check stored auth or OAuth token on load
+  useEffect(() => {
+    const tokenParam = new URLSearchParams(window.location.search).get("token");
+    const saved = localStorage.getItem("kalss_auth_token");
+    const key = tokenParam || saved;
+    if (!key) return;
+    const timer = setTimeout(() => {
+      verifyAndLogin(key);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [verifyAndLogin]);
 
   const handleManualLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,35 +169,7 @@ export default function DashboardPage() {
     await verifyAndLogin(inputToken.trim());
   };
 
-  const handleRegisterToken = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!regGameName.trim()) {
-      setAuthError("Harap masukkan nama game kamu");
-      return;
-    }
-    setIsSubmittingAuth(true);
-    setAuthError("");
-    try {
-      const res = await fetch("/api/auth/create-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          gameName: regGameName.trim(),
-          robloxUsername: regRobloxUser.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (data.ok && data.keyRecord) {
-        setJustCreatedToken(data.keyRecord);
-      } else {
-        setAuthError(data.error || "Gagal membuat token");
-      }
-    } catch {
-      setAuthError("Gagal membuat token");
-    } finally {
-      setIsSubmittingAuth(false);
-    }
-  };
+  // Handler registrasi token sementara tidak digunakan (UI login hanya token manual).
 
   const handleEnterDashboard = () => {
     if (justCreatedToken) {
@@ -210,22 +189,7 @@ export default function DashboardPage() {
     setAuthError("");
   };
 
-  const fetchStats = async (key: string) => {
-    try {
-      const res = await fetch(`/api/stats?key=${encodeURIComponent(key)}`);
-      const data = await res.json();
-      if (data.ok) {
-        setStats(data.stats);
-        setDonations(data.recent);
-        if (data.keyRecord) {
-          setCurrentUser(data.keyRecord);
-        }
-      }
-    } catch (err) {
-      console.error("Fetch stats error:", err);
-    }
-  };
-
+  // fetchStats dipindahkan ke atas (useCallback) bersama verifyAndLogin.
   // Poll stats every 5 seconds when in dashboard
   useEffect(() => {
     if (!authToken) return;
@@ -233,7 +197,7 @@ export default function DashboardPage() {
       fetchStats(authToken);
     }, 5000);
     return () => clearInterval(interval);
-  }, [authToken]);
+  }, [authToken, fetchStats]);
 
   const handleSimulate = async () => {
     if (!authToken) return;
@@ -258,8 +222,8 @@ export default function DashboardPage() {
       } else {
         setSimStatus("❌ Gagal: " + (data.error || "Error"));
       }
-    } catch (err: any) {
-      setSimStatus("❌ Error koneksi: " + err.message);
+    } catch (err) {
+      setSimStatus("❌ Error koneksi: " + (err instanceof Error ? err.message : "Error"));
     } finally {
       setSimLoading(false);
     }
@@ -293,13 +257,13 @@ export default function DashboardPage() {
               <Coins className="w-8 h-8 text-slate-950" />
             </div>
             <h1 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-2">
-              KALSS GATEWAY
+              KALSS STUDIO
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                v2.0 Real
+                System License
               </span>
             </h1>
             <p className="text-xs text-slate-400 mt-1.5">
-              Platform Jembatan Donasi Saweria & BagiBagi ke Game Roblox
+              Platform Donasi Real — Game Roblox Kalss Studio
             </p>
           </div>
 
@@ -402,7 +366,7 @@ export default function DashboardPage() {
                 <button
                   type="submit"
                   disabled={isSubmittingAuth}
-                  className="w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 transition flex items-center justify-center gap-2"
+                  className="w-full py-3 px-4 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   Buka Dashboard via Token
                   <ArrowRight className="w-4 h-4" />
@@ -424,7 +388,7 @@ export default function DashboardPage() {
 
   // LOGGED IN DASHBOARD
   const currentKey = currentUser.key;
-  const saweriaUrl = `${origin}/api/webhook/saweria?key=${currentKey}`;
+  const realUrl = `${origin}/api/webhook/real?key=${currentKey}`;
   const bagiBagiUrl = `${origin}/api/webhook/bagibagi?key=${currentKey}`;
   const sociabuzzUrl = `${origin}/api/webhook/sociabuzz?key=${currentKey}`;
 
@@ -443,11 +407,11 @@ export default function DashboardPage() {
                   KALSS DONATION GATEWAY
                 </span>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                  v2.0 Real
+                  System License
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Bridge Saweria, BagiBagi, & Sociabuzz ke Game Roblox
+                Bridge Donasi Real ke Game Roblox
               </p>
             </div>
           </div>
@@ -456,6 +420,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800">
               {currentUser.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={currentUser.avatarUrl}
                   alt="Avatar"
@@ -595,25 +560,25 @@ export default function DashboardPage() {
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <Globe className="w-5 h-5 text-amber-400" />
-                  URL Webhook Payment Gateway (Saweria, BagiBagi, Sociabuzz)
+                  URL Webhook Payment Gateway (Real, BagiBagi, Sociabuzz)
                 </h3>
                 <p className="text-xs text-slate-400 mt-1">
                   Salin URL di bawah ini ke menu Webhook di dashboard akun pembayaran kamu. Uang tetap 100% masuk ke rekening/akunmu!
                 </p>
               </div>
 
-              {/* Saweria */}
+              {/* Real */}
               <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-400" />
-                    Saweria Webhook URL
+                  <span className="text-xs font-bold text-emerald-400 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    Real Webhook URL
                   </span>
                   <button
-                    onClick={() => copyToClipboard(saweriaUrl, "saweria")}
+                    onClick={() => copyToClipboard(realUrl, "real")}
                     className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 transition"
                   >
-                    {copiedText === "saweria" ? (
+                    {copiedText === "real" ? (
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                     ) : (
                       <Copy className="w-3.5 h-3.5" />
@@ -622,7 +587,7 @@ export default function DashboardPage() {
                   </button>
                 </div>
                 <code className="text-xs font-mono text-slate-300 break-all select-all block bg-slate-900/50 p-2.5 rounded-lg border border-slate-800/80">
-                  {saweriaUrl}
+                  {realUrl}
                 </code>
               </div>
 
@@ -808,7 +773,7 @@ Config.Backend = {
                   Penyedia Platform
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {(["saweria", "bagibagi", "sociabuzz"] as const).map((plat) => (
+                  {(["real", "bagibagi", "sociabuzz"] as const).map((plat) => (
                     <button
                       key={plat}
                       type="button"
@@ -819,7 +784,7 @@ Config.Backend = {
                           : "bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200"
                       }`}
                     >
-                      {plat}
+                      {plat === "real" ? "Real" : plat}
                     </button>
                   ))}
                 </div>

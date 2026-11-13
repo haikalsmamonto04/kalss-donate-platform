@@ -1,13 +1,13 @@
 # KALSS DONATION GATEWAY • Platform Donasi Real Roblox
 
-Platform jembatan (bridge) donasi otomatis dari platform pembayaran Indonesia (**Saweria**, **BagiBagi**, **Sociabuzz**, **Trakteer**) langsung ke game Roblox **Kalss Studio**.
+Platform jembatan (bridge) donasi **Real** otomatis dari berbagai platform pembayaran Indonesia (**BagiBagi**, **Sociabuzz**, **Trakteer**, dan lainnya) langsung ke game Roblox **Kalss Studio**. Donasi masuk via webhook yang nanti akan disesuaikan dengan link donasi aktif.
 
 ---
 
 ## 🚀 Fitur Utama
 1. **Multi-Game API Key**: Buat API Key terpisah untuk setiap game Roblox yang kamu miliki (`kalss_live_...`).
 2. **Webhook Receiver**:
-   - `POST /api/webhook/saweria?key=YOUR_API_KEY`
+   - `POST /api/webhook/real?key=YOUR_API_KEY`
    - `POST /api/webhook/bagibagi?key=YOUR_API_KEY`
    - `POST /api/webhook/sociabuzz?key=YOUR_API_KEY`
 3. **Roblox Integration**:
@@ -43,14 +43,14 @@ git push -u origin main
 
 ---
 
-## ⚙️ Cara Menghubungkan ke Saweria / BagiBagi
+## ⚙️ Cara Menghubungkan ke Real / BagiBagi
 
 1. Buka website kamu di Vercel (contoh: `https://kalss-donate.vercel.app`).
 2. Di tab **Pengaturan API & Webhook**, salin URL webhook platform yang kamu pakai:
-   * **Saweria**: `https://kalss-donate.vercel.app/api/webhook/saweria?key=kalss_live_...`
+   * **Real**: `https://kalss-donate.vercel.app/api/webhook/real?key=kalss_live_...`
    * **BagiBagi**: `https://kalss-donate.vercel.app/api/webhook/bagibagi?key=kalss_live_...`
    * **Sociabuzz**: `https://kalss-donate.vercel.app/api/webhook/sociabuzz?key=kalss_live_...`
-3. Tempelkan URL tersebut ke menu **Webhook** di dashboard akun Saweria / BagiBagi kamu.
+3. Tempelkan URL tersebut ke menu **Webhook** di dashboard akun pembayaran kamu.
 
 ---
 
@@ -69,4 +69,4 @@ Config.Backend = {
 }
 ```
 
-Sekarang setiap ada donasi masuk di Saweria, efek sinematik (Nuke, Smite, Blackhole, Endowment) dan papan donasi Kalss kamu akan meledak otomatis secara real-time!
+Sekarang setiap ada donasi masuk di Real, efek sinematik (Nuke, Smite, Blackhole, Endowment) dan papan donasi Kalss kamu akan meledak otomatis secara real-time!

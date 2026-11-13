@@ -22,7 +22,7 @@ export interface DonationItem {
   username: string;
   message: string;
   targetName: string;
-  platform: "saweria" | "bagibagi" | "sociabuzz" | "simulation" | "manual";
+  platform: "real" | "bagibagi" | "sociabuzz" | "simulation" | "manual";
   status: "pending" | "processing" | "done" | "failed";
   leaseToken?: string;
   claimedAt?: number;
@@ -37,7 +37,6 @@ interface DataStore {
 
 // Global in-memory storage fallback for serverless
 declare global {
-  // eslint-disable-next-line no-var
   var __kalssStore: DataStore | undefined;
 }
 
@@ -64,7 +63,7 @@ function getDefaultData(): DataStore {
         username: "Sultan_Roblox",
         message: "Semangat terus dev! Ini buat beli kopi 🚀",
         targetName: "",
-        platform: "saweria",
+        platform: "real",
         status: "done",
         createdAt: new Date(Date.now() - 3600000).toISOString(),
         processedAt: new Date(Date.now() - 3590000).toISOString(),

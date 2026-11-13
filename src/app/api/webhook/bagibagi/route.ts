@@ -55,10 +55,11 @@ export async function POST(req: NextRequest) {
       donationId: item.id,
       message: "Donation queued for Roblox processing",
     });
-  } catch (err: any) {
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "server_error";
     console.error("[BagiBagi Webhook] Error:", err);
     return NextResponse.json(
-      { ok: false, error: err?.message || "server_error" },
+      { ok: false, error: errorMessage },
       { status: 500 }
     );
   }

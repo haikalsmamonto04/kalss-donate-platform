@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
-    // Saweria payload standard
+    // Real donation payload standard
     const amount = Number(body.amount_raw || body.amount || 0);
     const donorName = String(body.donator_name || body.donor_name || body.username || "Anonymous");
     const message = String(body.message || "Terima kasih atas dukungannya!");
@@ -45,20 +45,21 @@ export async function POST(req: NextRequest) {
       username: donorName,
       message: message,
       targetName: targetName,
-      platform: "saweria",
+      platform: "real",
     });
 
-    console.log(`[Saweria Webhook] Added donation Rp ${amount} from ${donorName} for key ${apiKey}`);
+    console.log(`[Real Webhook] Added donation Rp ${amount} from ${donorName} for key ${apiKey}`);
 
     return NextResponse.json({
       ok: true,
       donationId: item.id,
       message: "Donation queued for Roblox processing",
     });
-  } catch (err: any) {
-    console.error("[Saweria Webhook] Error:", err);
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "server_error";
+    console.error("[Real Webhook] Error:", err);
     return NextResponse.json(
-      { ok: false, error: err?.message || "server_error" },
+      { ok: false, error: errorMessage },
       { status: 500 }
     );
   }

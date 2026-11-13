@@ -40,10 +40,11 @@ export async function POST(req: NextRequest) {
         createdAt: item.createdAt,
       })),
     });
-  } catch (err: any) {
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "server_error";
     console.error("[POST /api/pull] Error:", err);
     return NextResponse.json(
-      { ok: false, error: err?.message || "server_error" },
+      { ok: false, error: errorMessage },
       { status: 500 }
     );
   }

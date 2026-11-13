@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KALSS DONATE GATEWAY • Platform Donasi Real Roblox",
+  title: "KALSS STUDIO • System License",
   description:
-    "Jembatan donasi otomatis Saweria, BagiBagi, dan Sociabuzz untuk game Roblox Kalss Studio",
+    "Jembatan donasi otomatis Real untuk game Roblox Kalss Studio",
 };
 
 export default function RootLayout({
