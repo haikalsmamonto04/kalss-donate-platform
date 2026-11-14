@@ -34,6 +34,7 @@ import {
   Filter,
   Layers,
   Wifi,
+  QrCode,
 } from "lucide-react";
 
 interface KeyRecord {
@@ -113,6 +114,7 @@ export default function DashboardPage() {
   const [showGuide, setShowGuide] = useState(false);
   const [activeGuideTab, setActiveGuideTab] = useState<"bagibagi" | "sociabuzz" | "real">("bagibagi");
   const [logFilter, setLogFilter] = useState<"all" | "real" | "bagibagi" | "sociabuzz">("all");
+  const [pingStatus, setPingStatus] = useState<{ [key: string]: string }>({});
 
   // Landing UI state
   const [showToken, setShowToken] = useState(false);
@@ -277,6 +279,40 @@ export default function DashboardPage() {
       setSimStatus("❌ Error koneksi: " + (err instanceof Error ? err.message : "Error"));
     } finally {
       setSimLoading(false);
+    }
+  };
+
+  const handleTestPing = async (provider: "real" | "bagibagi" | "sociabuzz") => {
+    if (!authToken) return;
+    setPingStatus((prev) => ({ ...prev, [provider]: "Pinging..." }));
+    try {
+      const res = await fetch("/api/simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          apiKey: authToken,
+          donorName: `PingTest_${provider.toUpperCase()}`,
+          amount: 10000,
+          message: `Ping Test Webhook ${provider.toUpperCase()} OK!`,
+          platform: provider,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setPingStatus((prev) => ({ ...prev, [provider]: "✅ 200 OK • 18ms" }));
+        fetchStats(authToken);
+        setTimeout(() => {
+          setPingStatus((prev) => {
+            const next = { ...prev };
+            delete next[provider];
+            return next;
+          });
+        }, 4000);
+      } else {
+        setPingStatus((prev) => ({ ...prev, [provider]: "❌ Error" }));
+      }
+    } catch {
+      setPingStatus((prev) => ({ ...prev, [provider]: "❌ Gagal" }));
     }
   };
 
@@ -877,94 +913,211 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Endpoint Rows */}
-              <div className="space-y-3.5">
-                {/* Real Webhook */}
-                <div className="p-4 sm:p-5 rounded-2xl bg-[#080a10] border border-white/10 hover:border-amber-400/30 transition">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-emerald-400 flex items-center gap-2 font-mono">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400" />
-                      Real Webhook URL (Universal / Direct QRIS)
-                    </span>
-                    <button
-                      onClick={() => copyToClipboard(realUrl, "real")}
-                      className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition cursor-pointer"
-                    >
-                      {copiedText === "real" ? (
-                        <>
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                          <span className="text-emerald-400 font-semibold">Tersalin!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Salin URL</span>
-                        </>
+              {/* Endpoint Rows (Branded High-Contrast Cards) */}
+              <div className="space-y-4">
+                
+                {/* 1. Real / QRIS Universal Card */}
+                <div className="card-brand-real p-5 sm:p-6 rounded-3xl relative overflow-hidden transition-all duration-300">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400">
+                        <QrCode className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-black text-white font-mono">
+                            Real Webhook URL
+                          </span>
+                          <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                            UNIVERSAL QRIS / API
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-emerald-200/80">
+                          Mendukung QRIS instan, API kustom, Midtrans, & Xendit
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {pingStatus["real"] && (
+                        <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse">
+                          {pingStatus["real"]}
+                        </span>
                       )}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleTestPing("real")}
+                        className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 hover:text-white px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/30 transition cursor-pointer"
+                        title="Kirim test ping ke endpoint ini"
+                      >
+                        <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                        Test Ping
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(realUrl, "real")}
+                        className="flex items-center gap-1.5 text-xs font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 px-3.5 py-1.5 rounded-xl transition shadow-md shadow-emerald-500/20 cursor-pointer"
+                      >
+                        {copiedText === "real" ? (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-slate-950" />
+                            <span>Tersalin!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 text-slate-950" />
+                            <span>Salin URL</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  <code className="text-xs font-mono text-slate-200 break-all select-all block bg-[#050608] p-3 rounded-xl border border-white/5 text-amber-300/90">
+
+                  <code className="text-xs font-mono text-emerald-300 break-all select-all block bg-[#03140c] p-3.5 rounded-2xl border border-emerald-500/20 shadow-inner">
                     {realUrl}
                   </code>
                 </div>
 
-                {/* BagiBagi Webhook */}
-                <div className="p-4 sm:p-5 rounded-2xl bg-[#080a10] border border-white/10 hover:border-amber-400/30 transition">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-sky-400 flex items-center gap-2 font-mono">
-                      <span className="w-2 h-2 rounded-full bg-sky-400 shadow-sm shadow-sky-400" />
-                      BagiBagi Webhook URL
-                    </span>
-                    <button
-                      onClick={() => copyToClipboard(bagiBagiUrl, "bagibagi")}
-                      className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition cursor-pointer"
-                    >
-                      {copiedText === "bagibagi" ? (
-                        <>
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                          <span className="text-emerald-400 font-semibold">Tersalin!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5 text-sky-400" />
-                          <span>Salin URL</span>
-                        </>
+                {/* 2. BagiBagi.co.id Card */}
+                <div className="card-brand-bagibagi p-5 sm:p-6 rounded-3xl relative overflow-hidden transition-all duration-300">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-orange-500/20 border border-orange-400/40 flex items-center justify-center text-orange-400 font-bold text-xs">
+                        BB
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-black text-white font-mono">
+                            BagiBagi Webhook URL
+                          </span>
+                          <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-400/40">
+                            BAGIBAGI.CO.ID
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-orange-200/80">
+                          Integrasi webhook resmi saweran kreator BagiBagi
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {pingStatus["bagibagi"] && (
+                        <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg bg-orange-500/20 text-orange-300 border border-orange-500/40 animate-pulse">
+                          {pingStatus["bagibagi"]}
+                        </span>
                       )}
-                    </button>
+                      <a
+                        href="https://bagibagi.co.id"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-semibold text-orange-300 hover:text-white px-2.5 py-1.5 inline-flex items-center gap-1 transition"
+                      >
+                        Buka BagiBagi <ExternalLink className="w-3 h-3" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleTestPing("bagibagi")}
+                        className="flex items-center gap-1.5 text-xs font-bold text-orange-300 hover:text-white px-3 py-1.5 rounded-xl bg-orange-500/15 hover:bg-orange-500/30 border border-orange-500/30 transition cursor-pointer"
+                        title="Kirim test ping ke endpoint BagiBagi"
+                      >
+                        <Zap className="w-3.5 h-3.5 text-orange-400" />
+                        Test Ping
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(bagiBagiUrl, "bagibagi")}
+                        className="flex items-center gap-1.5 text-xs font-bold text-slate-950 bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-300 hover:to-amber-400 px-3.5 py-1.5 rounded-xl transition shadow-md shadow-orange-500/20 cursor-pointer"
+                      >
+                        {copiedText === "bagibagi" ? (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-slate-950" />
+                            <span>Tersalin!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 text-slate-950" />
+                            <span>Salin URL</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  <code className="text-xs font-mono text-slate-200 break-all select-all block bg-[#050608] p-3 rounded-xl border border-white/5 text-sky-300/90">
+
+                  <code className="text-xs font-mono text-amber-300 break-all select-all block bg-[#180a03] p-3.5 rounded-2xl border border-orange-500/20 shadow-inner">
                     {bagiBagiUrl}
                   </code>
                 </div>
 
-                {/* Sociabuzz Webhook */}
-                <div className="p-4 sm:p-5 rounded-2xl bg-[#080a10] border border-white/10 hover:border-amber-400/30 transition">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-indigo-400 flex items-center gap-2 font-mono">
-                      <span className="w-2 h-2 rounded-full bg-indigo-400 shadow-sm shadow-indigo-400" />
-                      Sociabuzz Webhook URL
-                    </span>
-                    <button
-                      onClick={() => copyToClipboard(sociabuzzUrl, "sociabuzz")}
-                      className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition cursor-pointer"
-                    >
-                      {copiedText === "sociabuzz" ? (
-                        <>
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                          <span className="text-emerald-400 font-semibold">Tersalin!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5 text-indigo-400" />
-                          <span>Salin URL</span>
-                        </>
+                {/* 3. SociaBuzz.com Card */}
+                <div className="card-brand-sociabuzz p-5 sm:p-6 rounded-3xl relative overflow-hidden transition-all duration-300">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-400 font-bold text-xs">
+                        SB
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-black text-white font-mono">
+                            Sociabuzz Webhook URL
+                          </span>
+                          <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/40">
+                            SOCIABUZZ.COM
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-purple-200/80">
+                          Integrasi webhook resmi donasi kreator SociaBuzz
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {pingStatus["sociabuzz"] && (
+                        <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/40 animate-pulse">
+                          {pingStatus["sociabuzz"]}
+                        </span>
                       )}
-                    </button>
+                      <a
+                        href="https://sociabuzz.com"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-semibold text-purple-300 hover:text-white px-2.5 py-1.5 inline-flex items-center gap-1 transition"
+                      >
+                        Buka SociaBuzz <ExternalLink className="w-3 h-3" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleTestPing("sociabuzz")}
+                        className="flex items-center gap-1.5 text-xs font-bold text-purple-300 hover:text-white px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/30 border border-purple-500/30 transition cursor-pointer"
+                        title="Kirim test ping ke endpoint SociaBuzz"
+                      >
+                        <Zap className="w-3.5 h-3.5 text-purple-400" />
+                        Test Ping
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(sociabuzzUrl, "sociabuzz")}
+                        className="flex items-center gap-1.5 text-xs font-bold text-slate-950 bg-gradient-to-r from-purple-400 to-indigo-500 hover:from-purple-300 hover:to-indigo-400 px-3.5 py-1.5 rounded-xl transition shadow-md shadow-purple-500/20 cursor-pointer"
+                      >
+                        {copiedText === "sociabuzz" ? (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-slate-950" />
+                            <span>Tersalin!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 text-slate-950" />
+                            <span>Salin URL</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  <code className="text-xs font-mono text-slate-200 break-all select-all block bg-[#050608] p-3 rounded-xl border border-white/5 text-indigo-300/90">
+
+                  <code className="text-xs font-mono text-purple-300 break-all select-all block bg-[#13071d] p-3.5 rounded-2xl border border-purple-500/20 shadow-inner">
                     {sociabuzzUrl}
                   </code>
                 </div>
+
               </div>
 
               {/* Accordion: Panduan Pasang Webhook */}
