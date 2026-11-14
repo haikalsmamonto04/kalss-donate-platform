@@ -27,6 +27,13 @@ import {
   Shield,
   Cpu,
   Lock,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  HelpCircle,
+  Filter,
+  Layers,
+  Wifi,
 } from "lucide-react";
 
 interface KeyRecord {
@@ -101,6 +108,11 @@ export default function DashboardPage() {
   const [simPlatform, setSimPlatform] = useState<"real" | "bagibagi" | "sociabuzz">("real");
   const [simStatus, setSimStatus] = useState<string | null>(null);
   const [simLoading, setSimLoading] = useState(false);
+
+  // Interior Guide & Filter state
+  const [showGuide, setShowGuide] = useState(false);
+  const [activeGuideTab, setActiveGuideTab] = useState<"bagibagi" | "sociabuzz" | "real">("bagibagi");
+  const [logFilter, setLogFilter] = useState<"all" | "real" | "bagibagi" | "sociabuzz">("all");
 
   // Landing UI state
   const [showToken, setShowToken] = useState(false);
@@ -608,25 +620,38 @@ export default function DashboardPage() {
   const bagiBagiUrl = `${origin}/api/webhook/bagibagi?key=${currentKey}`;
   const sociabuzzUrl = `${origin}/api/webhook/sociabuzz?key=${currentKey}`;
 
+  const filteredDonations = donations.filter((d) => {
+    if (logFilter === "all") return true;
+    return d.platform === logFilter;
+  });
+
+  const effectPresets = [
+    { name: "Smite", amount: 50000, desc: "Petir raksasa menyambar map", tag: "LIGHT VFX", icon: "⚡" },
+    { name: "Nuke", amount: 100000, desc: "Ledakan nuklir mengguncang layar", tag: "KABOOM", icon: "💥" },
+    { name: "Meteor", amount: 250000, desc: "Hujan meteor kehancuran total", tag: "CATACLYSM", icon: "☄️" },
+    { name: "Black Hole", amount: 1000000, desc: "Singularitas gravitasi menyedot map", tag: "SINGULARITY", icon: "🌌" },
+    { name: "Angel Endowment", amount: 2500000, desc: "Aura malaikat suci & avatar raksasa", tag: "LEGENDARY", icon: "👑" },
+  ];
+
   return (
     <div className="min-h-screen bg-[#06070a] text-slate-100 antialiased matrix-grid-overlay relative selection:bg-amber-500/30 selection:text-amber-200">
       {/* Top Ambient Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1100px] h-[340px] bg-gradient-to-b from-amber-500/10 via-amber-600/5 to-transparent blur-3xl pointer-events-none" />
 
       {/* Top Navigation */}
-      <header className="border-b border-white/10 bg-[#06070a]/80 backdrop-blur-xl sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/20 border border-amber-300/30">
-              <Coins className="w-5 h-5 text-slate-950 font-bold" />
+      <header className="border-b border-white/10 bg-[#06070a]/85 backdrop-blur-xl sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/25 border border-amber-300/40">
+              <Coins className="w-6 h-6 text-slate-950 font-bold" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-black text-sm tracking-tight text-white flex items-center gap-1.5">
+                <span className="font-black text-sm sm:text-base tracking-tight text-white flex items-center gap-1.5">
                   KALSS STUDIO <span className="text-amber-400">REAL GATEWAY</span>
                 </span>
-                <span className="text-[10px] font-mono uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                  SYSTEM LICENSE
+                <span className="text-[10px] font-mono uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 hidden sm:inline-block">
+                  LIFETIME LICENSE
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
@@ -637,16 +662,21 @@ export default function DashboardPage() {
 
           {/* User Profile & Token Info */}
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-3 px-3.5 py-1.5 rounded-2xl bg-[#090b10] border border-white/10 shadow-inner">
+            <div className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-mono text-[10px]">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              GATEWAY ACTIVE · 18ms
+            </div>
+
+            <div className="flex items-center gap-3 px-3.5 py-1.5 rounded-2xl bg-[#090b10] border border-white/10 shadow-inner">
               {currentUser.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={currentUser.avatarUrl}
                   alt="Avatar"
-                  className="w-8 h-8 rounded-full ring-2 ring-amber-400/50 bg-slate-950 object-cover shadow-sm shadow-amber-500/30"
+                  className="w-8 h-8 rounded-full ring-2 ring-amber-400/80 bg-slate-950 object-cover shadow-sm shadow-amber-500/30"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-slate-800 ring-2 ring-amber-400/30 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-slate-800 ring-2 ring-amber-400/40 flex items-center justify-center">
                   <Gamepad2 className="w-4 h-4 text-amber-400" />
                 </div>
               )}
@@ -663,7 +693,7 @@ export default function DashboardPage() {
 
             <button
               onClick={() => copyToClipboard(currentKey, "activeToken")}
-              className="p-2.5 rounded-xl bg-[#090b10] border border-white/10 hover:border-amber-400/40 text-slate-300 hover:text-amber-300 transition shadow-sm"
+              className="p-2.5 rounded-xl bg-[#090b10] border border-white/10 hover:border-amber-400/40 text-slate-300 hover:text-amber-300 transition shadow-sm cursor-pointer"
               title="Salin Token Game Saya"
             >
               {copiedText === "activeToken" ? (
@@ -675,7 +705,7 @@ export default function DashboardPage() {
 
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-300 text-xs font-semibold transition"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-300 text-xs font-semibold transition cursor-pointer"
               title="Ganti Token / Keluar"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -692,72 +722,99 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           
           {/* Card 1: Total Donasi */}
-          <div className="p-6 rounded-3xl card-obsidian-luxury relative overflow-hidden group hover:border-amber-400/50 transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-mono uppercase tracking-widest text-amber-400/80 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                TOTAL DONASI REAL GAME INI
-              </span>
-              <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 group-hover:scale-105 transition-transform">
-                <Coins className="w-5 h-5" />
+          <div className="p-6 rounded-3xl card-obsidian-luxury relative overflow-hidden group hover:border-amber-400/50 transition-all duration-300 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-mono uppercase tracking-widest text-amber-400/80 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  TOTAL DONASI REAL GAME INI
+                </span>
+                <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 group-hover:scale-105 transition-transform">
+                  <Coins className="w-5 h-5" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-500 tracking-tight">
+                  Rp {stats.totalAmount.toLocaleString("id-ID")}
+                </div>
+                <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  Akumulasi donasi sukses terhubung ke server Roblox
+                </p>
               </div>
             </div>
-            <div className="mt-3">
-              <div className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-500 tracking-tight">
-                Rp {stats.totalAmount.toLocaleString("id-ID")}
-              </div>
-              <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                Akumulasi donasi sukses terhubung ke server Roblox
-              </p>
-            </div>
+
+            <button
+              onClick={() => setActiveTab("simulator")}
+              className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 mt-4 pt-3 border-t border-white/5 transition cursor-pointer"
+            >
+              Uji Coba Simulasi Donasi <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           {/* Card 2: Total Transaksi */}
-          <div className="p-6 rounded-3xl card-obsidian-luxury relative overflow-hidden group hover:border-amber-400/50 transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-mono uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                <Zap className="w-3.5 h-3.5 text-amber-400" />
-                TOTAL TRANSAKSI TEREKSEKUSI
-              </span>
-              <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 group-hover:scale-105 transition-transform">
-                <Flame className="w-5 h-5 text-amber-400" />
+          <div className="p-6 rounded-3xl card-obsidian-luxury relative overflow-hidden group hover:border-amber-400/50 transition-all duration-300 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-mono uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  TOTAL TRANSAKSI TEREKSEKUSI
+                </span>
+                <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 group-hover:scale-105 transition-transform">
+                  <Flame className="w-5 h-5 text-amber-400" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="text-3xl sm:text-4xl font-black text-white tracking-tight flex items-baseline gap-2">
+                  {stats.totalCount}{" "}
+                  <span className="text-sm font-normal text-slate-400">donasi</span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1.5">
+                  Semua donasi otomatis memicu efek sinematik & podium di map
+                </p>
               </div>
             </div>
-            <div className="mt-3">
-              <div className="text-3xl sm:text-4xl font-black text-white tracking-tight flex items-baseline gap-2">
-                {stats.totalCount}{" "}
-                <span className="text-sm font-normal text-slate-400">donasi</span>
-              </div>
-              <p className="text-xs text-slate-400 mt-1.5">
-                Semua donasi otomatis memicu efek sinematik & podium di map
-              </p>
-            </div>
+
+            <button
+              onClick={() => setActiveTab("logs")}
+              className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 mt-4 pt-3 border-t border-white/5 transition cursor-pointer"
+            >
+              Buka Riwayat Transaksi Live <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           {/* Card 3: Status Worker */}
-          <div className="p-6 rounded-3xl card-obsidian-luxury relative overflow-hidden group hover:border-emerald-400/50 transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-mono uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          <div className="p-6 rounded-3xl card-obsidian-luxury relative overflow-hidden group hover:border-emerald-400/50 transition-all duration-300 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-mono uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  STATUS ROBLOX WORKER
                 </span>
-                STATUS ROBLOX WORKER
-              </span>
-              <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <Radio className="w-5 h-5 animate-pulse" />
+                <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <Radio className="w-5 h-5 animate-pulse" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="text-3xl sm:text-4xl font-black text-emerald-400 tracking-tight flex items-center gap-2">
+                  Siap Jemput
+                </div>
+                <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-slate-300 font-mono font-semibold">{stats.pendingCount}</span> transaksi antrean pending · ~18ms latency
+                </p>
               </div>
             </div>
-            <div className="mt-3">
-              <div className="text-3xl sm:text-4xl font-black text-emerald-400 tracking-tight flex items-center gap-2">
-                Siap Jemput
-              </div>
-              <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-slate-300 font-mono font-semibold">{stats.pendingCount}</span> transaksi antrean pending · ~18ms latency
-              </p>
-            </div>
+
+            <button
+              onClick={() => setActiveTab("webhook")}
+              className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 mt-4 pt-3 border-t border-white/5 transition cursor-pointer"
+            >
+              Lihat Konfigurasi Luau <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
 
         </div>
@@ -909,6 +966,85 @@ export default function DashboardPage() {
                   </code>
                 </div>
               </div>
+
+              {/* Accordion: Panduan Pasang Webhook */}
+              <div className="pt-2 border-t border-white/5">
+                <button
+                  type="button"
+                  onClick={() => setShowGuide(!showGuide)}
+                  className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-[#090b10] border border-white/10 text-xs text-slate-300 hover:text-white transition cursor-pointer"
+                >
+                  <span className="flex items-center gap-2 font-bold text-amber-400">
+                    <HelpCircle className="w-4 h-4" />
+                    Panduan Praktis Cara Pasang Webhook di BagiBagi & Sociabuzz
+                  </span>
+                  {showGuide ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+
+                {showGuide && (
+                  <div className="mt-3 p-5 rounded-2xl bg-[#07090e] border border-white/10 space-y-4 luxury-fade-up">
+                    <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+                      <button
+                        type="button"
+                        onClick={() => setActiveGuideTab("bagibagi")}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          activeGuideTab === "bagibagi"
+                            ? "bg-sky-500/20 text-sky-300 border border-sky-500/30"
+                            : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        BagiBagi.co.id
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveGuideTab("sociabuzz")}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          activeGuideTab === "sociabuzz"
+                            ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                            : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        SociaBuzz.com
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveGuideTab("real")}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          activeGuideTab === "real"
+                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                            : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        Real / QRIS Universal
+                      </button>
+                    </div>
+
+                    {activeGuideTab === "bagibagi" && (
+                      <ol className="list-decimal list-inside space-y-2 text-xs text-slate-300 leading-relaxed font-sans">
+                        <li>Buka dashboard akun kreator kamu di <a href="https://bagibagi.co.id" target="_blank" rel="noreferrer" className="text-sky-400 underline font-semibold">bagibagi.co.id</a>.</li>
+                        <li>Masuk ke menu <span className="font-semibold text-white">Pengaturan / Integrasi</span> lalu cari bagian <span className="font-semibold text-white">Webhook URL</span>.</li>
+                        <li>Salin <span className="font-mono text-sky-300">BagiBagi Webhook URL</span> di atas, lalu tempelkan ke kolom URL di BagiBagi.</li>
+                        <li>Simpan pengaturan. Setiap donatur mengirim uang di BagiBagi dengan nama Roblox mereka, donasi dan efek koin akan otomatis meledak di server game!</li>
+                      </ol>
+                    )}
+
+                    {activeGuideTab === "sociabuzz" && (
+                      <ol className="list-decimal list-inside space-y-2 text-xs text-slate-300 leading-relaxed font-sans">
+                        <li>Login ke akun kamu di <a href="https://sociabuzz.com" target="_blank" rel="noreferrer" className="text-indigo-400 underline font-semibold">sociabuzz.com</a>.</li>
+                        <li>Masuk ke menu <span className="font-semibold text-white">Edit Profile</span> $\to$ pilih <span className="font-semibold text-white">Webhook Notification</span>.</li>
+                        <li>Salin <span className="font-mono text-indigo-300">Sociabuzz Webhook URL</span> di atas dan masukkan ke kolom yang tersedia.</li>
+                        <li>Klik <span className="font-semibold text-white">Simpan / Activate</span>. Webhook siap menerima payload notifikasi transaksi instan!</li>
+                      </ol>
+                    )}
+
+                    {activeGuideTab === "real" && (
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        Endpoint Real ini menerima payload JSON POST standar dari payment gateway kustom, Midtrans, Xendit, atau bot payment QRIS kamu. Cukup kirim field <code className="text-amber-400 font-mono">donorName</code>, <code className="text-amber-400 font-mono">amount</code>, dan <code className="text-amber-400 font-mono">message</code>.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Roblox Studio Integration Config Box */}
@@ -967,7 +1103,7 @@ Config.Backend = {
 
         {/* TAB 2: SIMULATOR */}
         {activeTab === "simulator" && (
-          <div className="p-6 sm:p-8 rounded-3xl card-obsidian-luxury border border-white/10 max-w-2xl mx-auto space-y-6">
+          <div className="p-6 sm:p-8 rounded-3xl card-obsidian-luxury border border-white/10 max-w-3xl mx-auto space-y-6">
             <div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 font-mono text-[10px] uppercase tracking-wider mb-2">
                 <Cpu className="w-3 h-3" /> REAL-TIME DISPATCH ENGINE
@@ -977,22 +1113,17 @@ Config.Backend = {
                 Simulator Donasi Real Instan
               </h3>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Kirim donasi simulasi ke token game kamu untuk menguji efek Nuke, Smite, Meteor, atau Black Hole di Roblox Studio tanpa perlu pembayaran uang asli!
+                Kirim donasi simulasi ke token game kamu untuk menguji efek Nuke, Smite, Meteor, Black Hole, atau Angel di Roblox Studio tanpa perlu transaksi uang asli!
               </p>
             </div>
 
             {/* Quick Presets */}
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <label className="text-xs font-semibold text-slate-300 block">
                 Pilih Preset Efek Sinematik:
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                {[
-                  { name: "Smite", amount: 50000, tag: "Light VFX" },
-                  { name: "Nuke", amount: 100000, tag: "Kaboom" },
-                  { name: "Meteor", amount: 250000, tag: "Cataclysm" },
-                  { name: "Black Hole", amount: 1000000, tag: "Singularity" },
-                ].map((preset) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {effectPresets.map((preset) => (
                   <button
                     key={preset.name}
                     type="button"
@@ -1000,24 +1131,31 @@ Config.Backend = {
                       setSimAmount(preset.amount);
                       setSimMessage(`Efek ${preset.name} Rp ${preset.amount.toLocaleString()}! 🔥`);
                     }}
-                    className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
+                    className={`p-3.5 rounded-2xl border text-left transition cursor-pointer relative overflow-hidden ${
                       simAmount === preset.amount
                         ? "bg-amber-500/15 border-amber-400 text-amber-300 shadow-md shadow-amber-500/10"
                         : "bg-[#080a10] border-white/10 text-slate-300 hover:border-white/20"
                     }`}
                   >
-                    <div className="text-xs font-bold">{preset.name}</div>
-                    <div className="text-[11px] font-mono text-amber-400 mt-0.5">
-                      Rp {preset.amount.toLocaleString()}
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-bold flex items-center gap-1.5">
+                        <span>{preset.icon}</span> {preset.name}
+                      </div>
+                      <span className="text-[9px] font-mono text-amber-400/90 font-semibold uppercase px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
+                        {preset.tag}
+                      </span>
                     </div>
-                    <div className="text-[9px] font-mono text-slate-500 uppercase mt-1">{preset.tag}</div>
+                    <div className="text-xs font-mono font-bold text-amber-400 mt-1">
+                      Rp {preset.amount.toLocaleString("id-ID")}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1 truncate">{preset.desc}</div>
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Form Fields */}
-            <div className="space-y-4">
+            <div className="space-y-4 pt-2">
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1.5">
                   Username Donatur di Roblox
@@ -1087,10 +1225,10 @@ Config.Backend = {
             <button
               onClick={handleSimulate}
               disabled={simLoading}
-              className="w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-slate-950 shadow-lg shadow-amber-500/25 transition flex items-center justify-center gap-2 btn-gold-shimmer disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full py-4 px-4 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-slate-950 shadow-lg shadow-amber-500/25 transition flex items-center justify-center gap-2 btn-gold-shimmer disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               <Send className="w-4 h-4" />
-              {simLoading ? "Mengirim ke Antrean Server..." : "Kirim Test Donasi Sekarang"}
+              {simLoading ? "Mengirim ke Antrean Server..." : "Kirim Test Donasi Sekarang 🚀"}
             </button>
           </div>
         )}
@@ -1098,7 +1236,7 @@ Config.Backend = {
         {/* TAB 3: TRANSACTION LOGS */}
         {activeTab === "logs" && (
           <div className="p-6 sm:p-8 rounded-3xl card-obsidian-luxury border border-white/10 space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-black text-white flex items-center gap-2">
                   <Clock className="w-5 h-5 text-amber-400" />
@@ -1108,20 +1246,49 @@ Config.Backend = {
                   Menampilkan log donasi live yang masuk ke token terdaftar ini.
                 </p>
               </div>
-              <button
-                onClick={() => fetchStats(currentKey)}
-                className="flex items-center gap-2 text-xs font-semibold text-slate-200 hover:text-white px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition cursor-pointer shrink-0"
-              >
-                <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
-                Segarkan Data
-              </button>
+
+              <div className="flex items-center gap-2.5 flex-wrap">
+                {/* Platform Filters */}
+                <div className="inline-flex items-center p-1 rounded-xl bg-[#090b10] border border-white/10 space-x-1">
+                  {(["all", "real", "bagibagi", "sociabuzz"] as const).map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      onClick={() => setLogFilter(filter)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold uppercase transition cursor-pointer ${
+                        logFilter === filter
+                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      {filter}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => fetchStats(currentKey)}
+                  className="flex items-center gap-2 text-xs font-semibold text-slate-200 hover:text-white px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition cursor-pointer shrink-0"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
+                  Segarkan Data
+                </button>
+              </div>
             </div>
 
-            {donations.length === 0 ? (
-              <div className="p-12 text-center text-slate-500 text-xs space-y-2 card-obsidian-luxury rounded-2xl border border-white/5">
-                <Coins className="w-8 h-8 text-slate-600 mx-auto" />
-                <p className="text-slate-400 font-semibold">Belum ada transaksi donasi untuk token ini.</p>
-                <p className="text-slate-500 text-[11px]">Kirim donasi simulasi di tab Simulator untuk mencoba pemicuan efek!</p>
+            {filteredDonations.length === 0 ? (
+              <div className="p-12 text-center text-slate-500 text-xs space-y-3 card-obsidian-luxury rounded-2xl border border-white/5">
+                <Coins className="w-9 h-9 text-slate-600 mx-auto" />
+                <p className="text-slate-300 font-semibold text-sm">Belum ada transaksi donasi untuk token ini.</p>
+                <p className="text-slate-400 text-xs max-w-md mx-auto leading-relaxed">
+                  Kirim donasi simulasi di tab Simulator atau buat donasi uji coba melalui link BagiBagi / Sociabuzz untuk melihat entri di ledger ini!
+                </p>
+                <button
+                  onClick={() => setActiveTab("simulator")}
+                  className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold transition cursor-pointer"
+                >
+                  Buka Simulator Donasi <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             ) : (
               <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#07090e]">
@@ -1137,7 +1304,7 @@ Config.Backend = {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {donations.map((item) => (
+                    {filteredDonations.map((item) => (
                       <tr key={item.id} className="hover:bg-white/5 transition">
                         <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400">
                           {new Date(item.createdAt).toLocaleTimeString("id-ID", {
