@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KALSS STUDIO • System License",
+  title: "KALSS STUDIO • Real Donation Gateway",
   description:
-    "Jembatan donasi otomatis Real untuk game Roblox Kalss Studio",
+    "Infrastruktur Webhook Donasi Real-Time & Efek Sinematik Roblox Kalss Studio",
 };
 
 export default function RootLayout({
@@ -25,7 +25,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className={`${geistSans.variable} ${geistMono.variable} dark`}>
-      <body className="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
+      <body className="bg-[#06070a] text-slate-100 min-h-screen antialiased selection:bg-amber-500/30 selection:text-amber-200">
         {children}
       </body>
     </html>
