@@ -34,16 +34,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, config: saved, donors: state.donors });
     }
 
+    if (action === "upsert_donor") {
+      const donor = body.donor || {};
+      if (!donor.userId || !donor.username) {
+        return NextResponse.json({ ok: false, error: "userId_and_username_required" }, { status: 400 });
+      }
+      const donors = KalssStore.queueManualDonor(apiKey, donor);
+      return NextResponse.json({ ok: true, donors });
+    }
+
     if (action === "push_from_roblox") {
       const current = KalssStore.getSyncState(apiKey);
       let nextConfig = current.config;
       if (body.config && !current.config.customizedByWeb) {
         nextConfig = KalssStore.saveSyncConfig(apiKey, body.config, false);
       }
+      const pendingDonorUpdates = KalssStore.consumePendingDonorSync(apiKey);
       const nextDonors = Array.isArray(body.donors)
         ? KalssStore.upsertSyncedDonors(apiKey, body.donors)
         : current.donors;
-      return NextResponse.json({ ok: true, config: nextConfig, donors: nextDonors });
+      return NextResponse.json({
+        ok: true,
+        config: nextConfig,
+        donors: nextDonors,
+        pendingDonorUpdates,
+      });
     }
 
     return NextResponse.json({ ok: false, error: "unknown_action" }, { status: 400 });

@@ -61,6 +61,7 @@ interface DataStore {
   donations: DonationItem[];
   syncedConfigs?: Record<string, SyncedGameConfig>;
   syncedDonors?: Record<string, SyncedDonorRecord[]>;
+  pendingDonorSync?: Record<string, SyncedDonorRecord[]>;
 }
 
 export function getDefaultSyncConfig(): SyncedGameConfig {
@@ -420,5 +421,46 @@ export const KalssStore = {
     data.syncedDonors[apiKey] = merged;
     saveData(data);
     return merged;
+  },
+
+  queueManualDonor(
+    apiKey: string,
+    donor: { userId: string; username: string; displayName?: string; total: number }
+  ): SyncedDonorRecord[] {
+    const data = loadData();
+    if (!data.syncedDonors) data.syncedDonors = {};
+    if (!data.pendingDonorSync) data.pendingDonorSync = {};
+
+    const uid = String(donor.userId || "").trim();
+    const rec: SyncedDonorRecord = {
+      userId: uid,
+      username: String(donor.username || "Player").trim(),
+      displayName: String(donor.displayName || donor.username || "Player").trim(),
+      total: Math.max(0, Math.floor(Number(donor.total) || 0)),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const list = (data.syncedDonors[apiKey] || []).filter((d) => String(d.userId) !== uid);
+    list.push(rec);
+    list.sort((a, b) => b.total - a.total);
+    data.syncedDonors[apiKey] = list.slice(0, 100);
+
+    const queue = (data.pendingDonorSync[apiKey] || []).filter((d) => String(d.userId) !== uid);
+    queue.push(rec);
+    data.pendingDonorSync[apiKey] = queue;
+
+    saveData(data);
+    return data.syncedDonors[apiKey];
+  },
+
+  consumePendingDonorSync(apiKey: string): SyncedDonorRecord[] {
+    const data = loadData();
+    if (!data.pendingDonorSync) return [];
+    const items = data.pendingDonorSync[apiKey] || [];
+    if (items.length > 0) {
+      data.pendingDonorSync[apiKey] = [];
+      saveData(data);
+    }
+    return items;
   },
 };

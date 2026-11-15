@@ -137,6 +137,11 @@ export default function DashboardPage() {
   >([]);
   const [syncSaving, setSyncSaving] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [manualUserId, setManualUserId] = useState("");
+  const [manualUsername, setManualUsername] = useState("");
+  const [manualDisplayName, setManualDisplayName] = useState("");
+  const [manualTotal, setManualTotal] = useState(0);
+  const [manualStatus, setManualStatus] = useState<string | null>(null);
 
   // Interior Guide & Filter state
   const [showGuide, setShowGuide] = useState(false);
@@ -1694,6 +1699,84 @@ Config.Backend = {
                 >
                   <RefreshCw className="w-3.5 h-3.5" /> Refresh
                 </button>
+              </div>
+
+              {/* Form Tambah / Update DataStore Manual */}
+              <div className="p-4 rounded-2xl bg-[#080a10] border border-white/10 space-y-3">
+                <div className="text-xs font-bold text-amber-300">+ Tambah / Update DataStore Manual (Tersinkron ke Roblox)</div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <input
+                    type="text"
+                    placeholder="UserId Roblox (cth: 4328798715)"
+                    value={manualUserId}
+                    onChange={(e) => setManualUserId(e.target.value)}
+                    className="px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white font-mono"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Username (cth: rabaikuda)"
+                    value={manualUsername}
+                    onChange={(e) => setManualUsername(e.target.value)}
+                    className="px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white"
+                  />
+                  <input
+                    type="text"
+                    placeholder="DisplayName (opsional)"
+                    value={manualDisplayName}
+                    onChange={(e) => setManualDisplayName(e.target.value)}
+                    className="px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Total Donasi (Rp)"
+                    value={manualTotal}
+                    onChange={(e) => setManualTotal(Number(e.target.value))}
+                    className="px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-emerald-400 font-mono"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[11px] text-slate-400">
+                    {manualStatus || "Perubahan manual akan otomatis dijemput oleh server Roblox saat sync."}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setManualStatus(null);
+                      try {
+                        const res = await fetch("/api/sync", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            key: currentKey,
+                            action: "upsert_donor",
+                            donor: {
+                              userId: manualUserId.trim(),
+                              username: manualUsername.trim(),
+                              displayName: manualDisplayName.trim() || manualUsername.trim(),
+                              total: Number(manualTotal) || 0,
+                            },
+                          }),
+                        });
+                        const data = await res.json();
+                        if (data.ok) {
+                          setSyncedDonors(data.donors || []);
+                          setManualStatus("✅ DataStore donatur ditambahkan & masuk antrean sync Roblox!");
+                          setManualUserId("");
+                          setManualUsername("");
+                          setManualDisplayName("");
+                          setManualTotal(0);
+                        } else {
+                          setManualStatus("❌ Gagal: " + (data.error || "invalid"));
+                        }
+                      } catch {
+                        setManualStatus("❌ Gagal menghubungi server.");
+                      }
+                    }}
+                    className="px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs cursor-pointer"
+                  >
+                    Simpan ke DataStore &amp; Sync
+                  </button>
+                </div>
               </div>
 
               {syncedDonors.length === 0 ? (
