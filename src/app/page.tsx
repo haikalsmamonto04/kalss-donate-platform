@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Coins,
   Key,
@@ -89,6 +89,24 @@ export default function DashboardPage() {
   // Auth state
   const [authToken, setAuthToken] = useState<string>("");
   const [currentUser, setCurrentUser] = useState<KeyRecord | null>(null);
+  const [loggedInUser, setLoggedInUser] = useState<{
+    userId: string;
+    username: string;
+    avatarUrl?: string;
+  } | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem("kalss_logged_user");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const activeTokenRef = useRef<string>("");
+  const loggedInUserIdRef = useRef<string>(loggedInUser?.userId || "");
+  useEffect(() => {
+    loggedInUserIdRef.current = loggedInUser?.userId || "";
+  }, [loggedInUser]);
   const [authLoading, setAuthLoading] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     const tokenParam = new URLSearchParams(window.location.search).get("token");
@@ -225,9 +243,13 @@ export default function DashboardPage() {
     }
   }, []);
 
-  const fetchPlaces = useCallback(async (key: string) => {
+  const fetchPlaces = useCallback(async (key: string, actorUserId?: string) => {
     try {
-      const res = await fetch(`/api/place?key=${encodeURIComponent(key)}`);
+      const uid = actorUserId || loggedInUserIdRef.current || "";
+      const qs = uid
+        ? `key=${encodeURIComponent(key)}&actorUserId=${encodeURIComponent(uid)}`
+        : `key=${encodeURIComponent(key)}`;
+      const res = await fetch(`/api/place?${qs}`);
       const data = await res.json();
       if (data.ok && Array.isArray(data.places)) {
         setMyPlaces(data.places);
@@ -242,6 +264,9 @@ export default function DashboardPage() {
     if (!authToken || !placeIdInput.trim()) return;
     setPlaceLoading(true);
     setPlaceStatus(null);
+    const actorUserId = loggedInUser?.userId || currentUser?.robloxUserId;
+    const actorUsername = loggedInUser?.username || currentUser?.robloxUsername;
+    const actorAvatarUrl = loggedInUser?.avatarUrl || currentUser?.avatarUrl;
     try {
       const res = await fetch("/api/place", {
         method: "POST",
@@ -250,8 +275,9 @@ export default function DashboardPage() {
           action: "bind_place",
           key: authToken,
           placeId: placeIdInput.trim(),
-          actorUserId: currentUser?.robloxUserId,
-          actorUsername: currentUser?.robloxUsername,
+          actorUserId,
+          actorUsername,
+          actorAvatarUrl,
         }),
       });
       const data = await res.json();
@@ -260,6 +286,7 @@ export default function DashboardPage() {
         if (Array.isArray(data.places)) setMyPlaces(data.places);
         setPlaceIdInput("");
         if (data.joinedExisting && data.keyRecord.key !== authToken) {
+          activeTokenRef.current = data.keyRecord.key;
           localStorage.setItem("kalss_auth_token", data.keyRecord.key);
           setAuthToken(data.keyRecord.key);
           window.history.replaceState({}, "", `/?token=${encodeURIComponent(data.keyRecord.key)}`);
@@ -324,10 +351,13 @@ export default function DashboardPage() {
     }
   };
 
-  const fetchStats = useCallback(async (key: string) => {
+  const fetchStats = useCallback(async (key: string, actorIdOverride?: string) => {
     try {
       const res = await fetch(`/api/stats?key=${encodeURIComponent(key)}`);
       const data = await res.json();
+      if (activeTokenRef.current && activeTokenRef.current !== key) {
+        return;
+      }
       if (data.ok) {
         setStats(data.stats);
         setDonations(data.recent);
@@ -336,13 +366,14 @@ export default function DashboardPage() {
         }
       }
       fetchSync(key);
-      fetchPlaces(key);
+      fetchPlaces(key, actorIdOverride);
     } catch (err) {
       console.error("Fetch stats error:", err);
     }
   }, [fetchSync, fetchPlaces]);
 
   const handleSelectPrimaryPlace = (place: KeyRecord) => {
+    activeTokenRef.current = place.key;
     setCurrentUser(place);
     setAuthToken(place.key);
     localStorage.setItem("kalss_auth_token", place.key);
@@ -355,7 +386,7 @@ export default function DashboardPage() {
   };
 
   const verifyAndLogin = useCallback(
-    async (key: string) => {
+    async (key: string, isFreshLogin = false) => {
       setAuthLoading(true);
       setAuthError("");
       try {
@@ -366,12 +397,36 @@ export default function DashboardPage() {
         });
         const data = await res.json();
         if (data.ok && data.keyRecord) {
+          activeTokenRef.current = data.keyRecord.key;
           setAuthToken(data.keyRecord.key);
           setCurrentUser(data.keyRecord);
           localStorage.setItem("kalss_auth_token", data.keyRecord.key);
-          fetchStats(data.keyRecord.key);
+
+          let actorIdForFetch = loggedInUserIdRef.current;
+          const existingSavedUser = localStorage.getItem("kalss_logged_user");
+          if ((isFreshLogin || !existingSavedUser) && data.keyRecord.robloxUserId) {
+            const profile = {
+              userId: data.keyRecord.robloxUserId,
+              username: data.keyRecord.robloxUsername || data.keyRecord.name,
+              avatarUrl: data.keyRecord.avatarUrl || "",
+            };
+            setLoggedInUser(profile);
+            loggedInUserIdRef.current = profile.userId;
+            actorIdForFetch = profile.userId;
+            localStorage.setItem("kalss_logged_user", JSON.stringify(profile));
+          }
+
+          if (typeof window !== "undefined" && window.location.search.includes("oauth=1")) {
+            window.history.replaceState({}, "", `/?token=${encodeURIComponent(data.keyRecord.key)}`);
+          }
+
+          fetchStats(data.keyRecord.key, actorIdForFetch || undefined);
         } else {
+          activeTokenRef.current = "";
           localStorage.removeItem("kalss_auth_token");
+          localStorage.removeItem("kalss_logged_user");
+          setLoggedInUser(null);
+          loggedInUserIdRef.current = "";
           setAuthError(data.error || "Token tidak valid");
           setAuthToken("");
           setCurrentUser(null);
@@ -387,12 +442,14 @@ export default function DashboardPage() {
 
   // Check stored auth or OAuth token on load
   useEffect(() => {
-    const tokenParam = new URLSearchParams(window.location.search).get("token");
+    const params = new URLSearchParams(window.location.search);
+    const tokenParam = params.get("token");
+    const isOAuthRedirect = params.get("oauth") === "1";
     const saved = localStorage.getItem("kalss_auth_token");
     const key = tokenParam || saved;
     if (!key) return;
     const timer = setTimeout(() => {
-      verifyAndLogin(key);
+      verifyAndLogin(key, isOAuthRedirect);
     }, 0);
     return () => clearTimeout(timer);
   }, [verifyAndLogin]);
@@ -403,7 +460,7 @@ export default function DashboardPage() {
       setAuthError("Harap masukkan token kamu");
       return;
     }
-    await verifyAndLogin(inputToken.trim());
+    await verifyAndLogin(inputToken.trim(), true);
   };
 
   // Handler registrasi token sementara tidak digunakan (UI login hanya token manual).
@@ -419,7 +476,11 @@ export default function DashboardPage() {
   };
 
   const handleLogout = () => {
+    activeTokenRef.current = "";
     localStorage.removeItem("kalss_auth_token");
+    localStorage.removeItem("kalss_logged_user");
+    setLoggedInUser(null);
+    loggedInUserIdRef.current = "";
     setAuthToken("");
     setCurrentUser(null);
     setInputToken("");
@@ -884,10 +945,10 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-[#090b10] border border-white/10 shadow-inner max-w-[148px] sm:max-w-none">
-              {currentUser.avatarUrl ? (
+              {(loggedInUser?.avatarUrl || currentUser.avatarUrl) ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={currentUser.avatarUrl}
+                  src={loggedInUser?.avatarUrl || currentUser.avatarUrl}
                   alt="Avatar"
                   className="w-7 h-7 sm:w-8 sm:h-8 rounded-full ring-2 ring-amber-400/80 bg-slate-950 object-cover shadow-sm shadow-amber-500/30 shrink-0"
                 />
@@ -898,7 +959,7 @@ export default function DashboardPage() {
               )}
               <div className="text-left min-w-0">
                 <div className="text-[11px] sm:text-xs font-bold text-white flex items-center gap-1 min-w-0">
-                  <span className="truncate">{currentUser.robloxUsername || currentUser.name}</span>
+                  <span className="truncate">{loggedInUser?.username || currentUser.robloxUsername || currentUser.name}</span>
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400 shrink-0" />
                 </div>
                 <div className="text-[9px] sm:text-[10px] font-mono text-amber-400/80 truncate">

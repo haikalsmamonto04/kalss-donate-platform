@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     const keyRecord = await KalssStore.createOrGetRobloxKey(userId, username, avatarUrl);
 
     // Redirect to dashboard with token
-    return NextResponse.redirect(`${origin}/?token=${encodeURIComponent(keyRecord.key)}`);
+    return NextResponse.redirect(`${origin}/?token=${encodeURIComponent(keyRecord.key)}&oauth=1`);
   } catch (err) {
     console.error("Roblox OAuth callback error:", err);
     return NextResponse.redirect(`${origin}/?auth_error=server_error`);

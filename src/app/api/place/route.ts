@@ -20,6 +20,7 @@ async function listAccessiblePlaces(
 
 export async function GET(req: NextRequest) {
   const key = (req.nextUrl.searchParams.get("key") || "").trim();
+  const actorUserId = (req.nextUrl.searchParams.get("actorUserId") || "").trim();
   if (!key) {
     return NextResponse.json({ ok: false, error: "missing_api_key" }, { status: 400 });
   }
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
   if (!keyRecord) {
     return NextResponse.json({ ok: false, error: "invalid_api_key" }, { status: 401 });
   }
-  const places = await listAccessiblePlaces(keyRecord);
+  const places = await listAccessiblePlaces(keyRecord, actorUserId || undefined);
   return NextResponse.json({ ok: true, places });
 }
 
@@ -51,6 +52,9 @@ export async function POST(req: NextRequest) {
       const actorUserId = String(body.actorUserId || keyRecord.robloxUserId || "").trim();
       const actorUsername = String(
         body.actorUsername || keyRecord.robloxUsername || actorUserId
+      ).trim();
+      const actorAvatarUrl = String(
+        body.actorAvatarUrl || keyRecord.avatarUrl || ""
       ).trim();
 
       if (!placeId) {
@@ -105,7 +109,7 @@ export async function POST(req: NextRequest) {
           const updated = await KalssStore.addMember(existingUniverseKey.key, {
             userId: actorUserId,
             username: actorUsername,
-            avatarUrl: keyRecord.avatarUrl || "",
+            avatarUrl: actorAvatarUrl,
             role: "co-owner",
           });
           const active = updated || existingUniverseKey;
