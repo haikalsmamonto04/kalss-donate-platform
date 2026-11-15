@@ -558,6 +558,74 @@ export const KalssStore = {
     return mapDbKey(data);
   },
 
+  async createKeyForUserPlace(
+    user: { userId: string; username: string; avatarUrl?: string },
+    placeInfo: {
+      universeId: string;
+      placeId: string;
+      placeName: string;
+      creatorType: "User" | "Group";
+      creatorId: string;
+    }
+  ): Promise<ApiKeyRecord> {
+    const nowIso = new Date().toISOString();
+    const newRecord: ApiKeyRecord = {
+      id: "rbx-" + Date.now(),
+      key: generateLiveKey(),
+      name: placeInfo.placeName || `Game ${user.username}`,
+      robloxUserId: user.userId,
+      robloxUsername: user.username,
+      avatarUrl: user.avatarUrl || "",
+      universeId: placeInfo.universeId,
+      placeId: placeInfo.placeId,
+      placeName: placeInfo.placeName,
+      creatorType: placeInfo.creatorType,
+      creatorId: placeInfo.creatorId,
+      verified: false,
+      members: [
+        {
+          userId: user.userId,
+          username: user.username,
+          avatarUrl: user.avatarUrl || "",
+          role: "owner",
+          addedAt: nowIso,
+        },
+      ],
+      createdAt: nowIso,
+      totalAmount: 0,
+      donationCount: 0,
+    };
+
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      data.keys.unshift(newRecord);
+      saveLocalData(data);
+      return newRecord;
+    }
+
+    const { error } = await sb.from("kalss_keys").insert({
+      key: newRecord.key,
+      id: newRecord.id,
+      name: newRecord.name,
+      roblox_user_id: newRecord.robloxUserId,
+      roblox_username: newRecord.robloxUsername,
+      avatar_url: newRecord.avatarUrl,
+      universe_id: newRecord.universeId,
+      place_id: newRecord.placeId,
+      place_name: newRecord.placeName,
+      creator_type: newRecord.creatorType,
+      creator_id: newRecord.creatorId,
+      verified: false,
+      members: newRecord.members,
+      total_amount: 0,
+      donation_count: 0,
+      created_at: newRecord.createdAt,
+    });
+    if (error) throw new Error(error.message);
+    return newRecord;
+  },
+
   async markKeyVerified(apiKey: string): Promise<void> {
     const sb = getSupabaseClient();
     if (!sb) {

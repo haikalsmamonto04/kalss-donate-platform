@@ -1,9 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { KalssStore } from "@/lib/store";
+import { ApiKeyRecord, KalssStore } from "@/lib/store";
 import {
   resolveRobloxUserByUsername,
   verifyUserCanManagePlace,
 } from "@/lib/roblox";
+
+async function listAccessiblePlaces(
+  keyRecord: ApiKeyRecord,
+  actorUserId?: string
+): Promise<ApiKeyRecord[]> {
+  const uid = actorUserId || keyRecord.robloxUserId || "";
+  if (!uid) return [keyRecord];
+  const list = await KalssStore.getKeysForUser(uid);
+  if (!list.some((k) => k.key === keyRecord.key)) {
+    list.unshift(keyRecord);
+  }
+  return list;
+}
+
+export async function GET(req: NextRequest) {
+  const key = (req.nextUrl.searchParams.get("key") || "").trim();
+  if (!key) {
+    return NextResponse.json({ ok: false, error: "missing_api_key" }, { status: 400 });
+  }
+  const keyRecord = await KalssStore.findKey(key);
+  if (!keyRecord) {
+    return NextResponse.json({ ok: false, error: "invalid_api_key" }, { status: 401 });
+  }
+  const places = await listAccessiblePlaces(keyRecord);
+  return NextResponse.json({ ok: true, places });
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,6 +49,9 @@ export async function POST(req: NextRequest) {
     if (action === "bind_place") {
       const placeId = String(body.placeId || "").trim();
       const actorUserId = String(body.actorUserId || keyRecord.robloxUserId || "").trim();
+      const actorUsername = String(
+        body.actorUsername || keyRecord.robloxUsername || actorUserId
+      ).trim();
 
       if (!placeId) {
         return NextResponse.json(
@@ -58,18 +87,34 @@ export async function POST(req: NextRequest) {
 
       // If another key already owns this UniverseId:
       if (existingUniverseKey && existingUniverseKey.key !== keyRecord.key) {
-        if (check.placeInfo.creatorType === "Group") {
-          // Fellow Group Owner/High-Rank joins the shared community game dashboard!
-          const updated = await KalssStore.addMember(existingUniverseKey.key, {
-            userId: actorUserId,
-            username: String(body.actorUsername || keyRecord.robloxUsername || actorUserId),
-            avatarUrl: keyRecord.avatarUrl || "",
-            role: "co-owner",
-          });
+        if (
+          existingUniverseKey.robloxUserId === actorUserId ||
+          (existingUniverseKey.members || []).some((m) => m.userId === actorUserId)
+        ) {
+          const places = await listAccessiblePlaces(existingUniverseKey, actorUserId);
           return NextResponse.json({
             ok: true,
             joinedExisting: true,
-            keyRecord: updated || existingUniverseKey,
+            keyRecord: existingUniverseKey,
+            places,
+            message: `Beralih ke Place "${check.placeInfo.placeName}"!`,
+          });
+        }
+
+        if (check.placeInfo.creatorType === "Group") {
+          const updated = await KalssStore.addMember(existingUniverseKey.key, {
+            userId: actorUserId,
+            username: actorUsername,
+            avatarUrl: keyRecord.avatarUrl || "",
+            role: "co-owner",
+          });
+          const active = updated || existingUniverseKey;
+          const places = await listAccessiblePlaces(active, actorUserId);
+          return NextResponse.json({
+            ok: true,
+            joinedExisting: true,
+            keyRecord: active,
+            places,
             message: `Terhubung ke game komunitas "${check.placeInfo.placeName}" sebagai ${check.userRoleName || "Co-Owner"}!`,
           });
         }
@@ -84,11 +129,37 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // Multi-place: if current key already has a DIFFERENT universeId, add a new Place entry instead of overwriting
+      if (
+        keyRecord.universeId &&
+        keyRecord.universeId !== check.placeInfo.universeId
+      ) {
+        const created = await KalssStore.createKeyForUserPlace(
+          {
+            userId: actorUserId,
+            username: actorUsername,
+            avatarUrl: keyRecord.avatarUrl || "",
+          },
+          check.placeInfo
+        );
+        const places = await listAccessiblePlaces(created, actorUserId);
+        return NextResponse.json({
+          ok: true,
+          joinedExisting: true,
+          keyRecord: created,
+          places,
+          message: `Place baru "${check.placeInfo.placeName}" berhasil ditambahkan ke daftar Place kamu!`,
+        });
+      }
+
       const updated = await KalssStore.bindPlace(apiKey, check.placeInfo);
+      const active = updated || keyRecord;
+      const places = await listAccessiblePlaces(active, actorUserId);
       return NextResponse.json({
         ok: true,
         joinedExisting: false,
-        keyRecord: updated,
+        keyRecord: active,
+        places,
         message: `Place "${check.placeInfo.placeName}" (Universe ${check.placeInfo.universeId}) berhasil ditautkan!`,
       });
     }
@@ -114,9 +185,12 @@ export async function POST(req: NextRequest) {
         avatarUrl: user.avatarUrl,
         role: "co-owner",
       });
+      const active = updated || keyRecord;
+      const places = await listAccessiblePlaces(active);
       return NextResponse.json({
         ok: true,
-        keyRecord: updated,
+        keyRecord: active,
+        places,
         message: `${user.username} ditambahkan sebagai Co-Owner!`,
       });
     }
@@ -127,7 +201,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: false, error: "userId wajib diisi." }, { status: 400 });
       }
       const updated = await KalssStore.removeMember(apiKey, targetUserId);
-      return NextResponse.json({ ok: true, keyRecord: updated });
+      const active = updated || keyRecord;
+      const places = await listAccessiblePlaces(active);
+      return NextResponse.json({ ok: true, keyRecord: active, places });
     }
 
     return NextResponse.json({ ok: false, error: "unknown_action" }, { status: 400 });

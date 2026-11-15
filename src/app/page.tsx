@@ -158,6 +158,7 @@ export default function DashboardPage() {
   const [manualStatus, setManualStatus] = useState<string | null>(null);
 
   // Place Binding & Community Team state
+  const [myPlaces, setMyPlaces] = useState<KeyRecord[]>([]);
   const [placeIdInput, setPlaceIdInput] = useState("");
   const [placeStatus, setPlaceStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [placeLoading, setPlaceLoading] = useState(false);
@@ -221,6 +222,18 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const fetchPlaces = useCallback(async (key: string) => {
+    try {
+      const res = await fetch(`/api/place?key=${encodeURIComponent(key)}`);
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.places)) {
+        setMyPlaces(data.places);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const handleBindPlace = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!authToken || !placeIdInput.trim()) return;
@@ -241,6 +254,8 @@ export default function DashboardPage() {
       const data = await res.json();
       if (data.ok && data.keyRecord) {
         setCurrentUser(data.keyRecord);
+        if (Array.isArray(data.places)) setMyPlaces(data.places);
+        setPlaceIdInput("");
         if (data.joinedExisting && data.keyRecord.key !== authToken) {
           localStorage.setItem("kalss_auth_token", data.keyRecord.key);
           setAuthToken(data.keyRecord.key);
@@ -318,10 +333,23 @@ export default function DashboardPage() {
         }
       }
       fetchSync(key);
+      fetchPlaces(key);
     } catch (err) {
       console.error("Fetch stats error:", err);
     }
-  }, [fetchSync]);
+  }, [fetchSync, fetchPlaces]);
+
+  const handleSelectPrimaryPlace = (place: KeyRecord) => {
+    setCurrentUser(place);
+    setAuthToken(place.key);
+    localStorage.setItem("kalss_auth_token", place.key);
+    window.history.replaceState({}, "", `/?token=${encodeURIComponent(place.key)}`);
+    setPlaceStatus({
+      ok: true,
+      msg: `Place utama aktif dialihkan ke "${place.placeName || place.name}" (Token: ${place.key}).`,
+    });
+    fetchStats(place.key);
+  };
 
   const verifyAndLogin = useCallback(
     async (key: string) => {
@@ -1082,15 +1110,73 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {currentUser?.universeId && (
-                <div className="p-4 rounded-2xl bg-black/40 border border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
-                  <div className="space-y-1">
-                    <div className="font-bold text-white">{currentUser.placeName || currentUser.name}</div>
-                    <div className="font-mono text-[11px] text-slate-400">
-                      Place ID: <span className="text-amber-300">{currentUser.placeId}</span> &bull; Universe ID:{" "}
-                      <span className="text-amber-300">{currentUser.universeId}</span> &bull; Creator:{" "}
-                      <span className="text-emerald-300">{currentUser.creatorType || "User"}</span>
-                    </div>
+              {myPlaces.length > 0 && (
+                <div className="space-y-2.5">
+                  <div className="text-xs font-bold text-slate-300">
+                    Daftar Place Kamu ({myPlaces.length}) &mdash; Pilih Salah Satu Sebagai Utama
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {myPlaces.map((p) => {
+                      const isActive = p.key === authToken;
+                      return (
+                        <div
+                          key={p.key}
+                          className={`p-4 rounded-2xl border transition flex flex-col justify-between gap-3 text-xs ${
+                            isActive
+                              ? "bg-amber-500/10 border-amber-500/40"
+                              : "bg-black/40 border-white/10 hover:border-white/25"
+                          }`}
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-bold text-white truncate">
+                                {p.placeName || p.name}
+                              </span>
+                              <span
+                                className={`text-[10px] font-mono px-2 py-0.5 rounded-full border shrink-0 ${
+                                  p.verified
+                                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
+                                    : p.universeId
+                                    ? "bg-amber-500/15 border-amber-500/30 text-amber-300"
+                                    : "bg-white/5 border-white/10 text-slate-400"
+                                }`}
+                              >
+                                {p.verified ? "VERIFIED" : p.universeId ? "WAITING STUDIO" : "UNBOUND"}
+                              </span>
+                            </div>
+                            <div className="font-mono text-[11px] text-slate-400">
+                              {p.universeId ? (
+                                <>
+                                  Place: <span className="text-amber-300">{p.placeId}</span> &bull; Universe:{" "}
+                                  <span className="text-amber-300">{p.universeId}</span> &bull;{" "}
+                                  <span className="text-emerald-300">{p.creatorType || "User"}</span>
+                                </>
+                              ) : (
+                                <span>Belum ditautkan ke Place ID</span>
+                              )}
+                            </div>
+                            <div className="font-mono text-[10px] text-slate-500 truncate">
+                              Token: {p.key}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-2 pt-1">
+                            {isActive ? (
+                              <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Utama / Aktif
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSelectPrimaryPlace(p)}
+                                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-amber-500 hover:text-black text-white font-bold text-[11px] transition"
+                              >
+                                Jadikan Utama
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1100,7 +1186,7 @@ export default function DashboardPage() {
                   type="text"
                   value={placeIdInput}
                   onChange={(e) => setPlaceIdInput(e.target.value)}
-                  placeholder={currentUser?.placeId ? `Place ID saat ini: ${currentUser.placeId}` : "Masukkan Place ID Roblox (contoh: 132133195058596)"}
+                  placeholder="Tambah / Verifikasi Place ID Roblox baru (contoh: 132133195058596)"
                   className="flex-1 bg-black/50 border border-white/15 rounded-xl px-4 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-amber-500/60"
                 />
                 <button
@@ -1108,7 +1194,7 @@ export default function DashboardPage() {
                   disabled={placeLoading || !placeIdInput.trim()}
                   className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold text-xs transition shrink-0"
                 >
-                  {placeLoading ? "Memverifikasi..." : "Verifikasi & Tautkan Place"}
+                  {placeLoading ? "Memverifikasi..." : "+ Tambah / Verifikasi Place"}
                 </button>
               </form>
 
