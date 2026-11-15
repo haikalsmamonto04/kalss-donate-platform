@@ -1293,19 +1293,27 @@ export default function DashboardPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-black text-white font-mono">
-                            Real Webhook URL
+                            Saweria Webhook URL
                           </span>
                           <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
-                            UNIVERSAL QRIS / API
+                            SAWERIA.CO
                           </span>
                         </div>
                         <p className="text-[11px] text-emerald-200/80">
-                          Mendukung QRIS instan, API kustom, Midtrans, & Xendit
+                          Integrasi webhook resmi saweran kreator Saweria (QRIS, GoPay, OVO, Dana)
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
+                      <a
+                        href="https://saweria.co/admin/integration"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-[11px] font-bold text-emerald-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition"
+                      >
+                        Buka Saweria <ExternalLink className="w-3 h-3" />
+                      </a>
                       {pingStatus["real"] && (
                         <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse">
                           {pingStatus["real"]}
