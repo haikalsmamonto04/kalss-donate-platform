@@ -156,6 +156,9 @@ export default function DashboardPage() {
   const [manualUsername, setManualUsername] = useState("");
   const [manualTotal, setManualTotal] = useState(0);
   const [manualStatus, setManualStatus] = useState<string | null>(null);
+  const [editingDonorId, setEditingDonorId] = useState<string | null>(null);
+  const [editingDonorTotal, setEditingDonorTotal] = useState<number>(0);
+  const [editingSaving, setEditingSaving] = useState<boolean>(false);
 
   // Place Binding & Community Team state
   const [myPlaces, setMyPlaces] = useState<KeyRecord[]>([]);
@@ -2087,10 +2090,13 @@ Config.Backend = {
                         <th className="py-2.5 px-3">UserId</th>
                         <th className="py-2.5 px-3">Total Donasi</th>
                         <th className="py-2.5 px-3">Last Sync</th>
+                        <th className="py-2.5 px-3 text-right">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                      {syncedDonors.map((d, i) => (
+                      {syncedDonors.map((d, i) => {
+                        const isEditing = editingDonorId === d.userId;
+                        return (
                         <tr key={d.userId} className="hover:bg-white/[0.02]">
                           <td className="py-2.5 px-3 font-mono font-bold text-amber-400">#{i + 1}</td>
                           <td className="py-2.5 px-3 font-semibold text-white">
@@ -2098,13 +2104,87 @@ Config.Backend = {
                           </td>
                           <td className="py-2.5 px-3 font-mono text-slate-400">{d.userId}</td>
                           <td className="py-2.5 px-3 font-mono font-bold text-emerald-400">
-                            Rp {Number(d.total || 0).toLocaleString("id-ID")}
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                min={0}
+                                value={editingDonorTotal}
+                                onChange={(e) => setEditingDonorTotal(Number(e.target.value))}
+                                className="w-36 px-2.5 py-1 bg-black/60 border border-amber-500/60 rounded-lg text-xs text-emerald-300 font-mono focus:outline-none"
+                              />
+                            ) : (
+                              <>Rp {Number(d.total || 0).toLocaleString("id-ID")}</>
+                            )}
                           </td>
                           <td className="py-2.5 px-3 text-slate-400 font-mono text-[11px]">
                             {new Date(d.updatedAt).toLocaleTimeString("id-ID")}
                           </td>
+                          <td className="py-2.5 px-3 text-right">
+                            {isEditing ? (
+                              <div className="inline-flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  disabled={editingSaving}
+                                  onClick={async () => {
+                                    setEditingSaving(true);
+                                    setManualStatus(null);
+                                    try {
+                                      const res = await fetch("/api/sync", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                          key: currentKey,
+                                          action: "upsert_donor",
+                                          donor: {
+                                            userId: d.userId,
+                                            username: d.username,
+                                            displayName: d.displayName,
+                                            total: Math.max(0, Number(editingDonorTotal) || 0),
+                                          },
+                                        }),
+                                      });
+                                      const data = await res.json();
+                                      if (data.ok) {
+                                        setSyncedDonors(data.donors || []);
+                                        setEditingDonorId(null);
+                                        setManualStatus(`✅ DataStore @${d.username} diperbarui & disync ke Roblox!`);
+                                      } else {
+                                        setManualStatus("❌ Gagal update: " + (data.error || "invalid"));
+                                      }
+                                    } catch {
+                                      setManualStatus("❌ Gagal menghubungi server.");
+                                    } finally {
+                                      setEditingSaving(false);
+                                    }
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-[11px] cursor-pointer"
+                                >
+                                  {editingSaving ? "..." : "Simpan"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingDonorId(null)}
+                                  className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-[11px] cursor-pointer"
+                                >
+                                  Batal
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingDonorId(d.userId);
+                                  setEditingDonorTotal(Number(d.total) || 0);
+                                }}
+                                className="px-3 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-[11px] cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                            )}
+                          </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

@@ -96,8 +96,19 @@ export async function POST(req: NextRequest) {
         nextConfig = await KalssStore.saveSyncConfig(apiKey, body.config, false);
       }
       const pendingDonorUpdates = await KalssStore.consumePendingDonorSync(apiKey);
-      const nextDonors = Array.isArray(body.donors)
-        ? await KalssStore.upsertSyncedDonors(apiKey, body.donors)
+      const pendingIds = new Set(pendingDonorUpdates.map((p) => String(p.userId)));
+      const pendingNames = new Set(
+        pendingDonorUpdates.map((p) => String(p.username || "").toLowerCase())
+      );
+      const filteredIncomingDonors = Array.isArray(body.donors)
+        ? body.donors.filter(
+            (d: { userId?: string; username?: string }) =>
+              !pendingIds.has(String(d.userId || "")) &&
+              !pendingNames.has(String(d.username || "").toLowerCase())
+          )
+        : null;
+      const nextDonors = filteredIncomingDonors
+        ? await KalssStore.upsertSyncedDonors(apiKey, filteredIncomingDonors)
         : current.donors;
       return NextResponse.json({
         ok: true,
