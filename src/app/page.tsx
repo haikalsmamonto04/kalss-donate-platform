@@ -98,17 +98,45 @@ export default function DashboardPage() {
     keyCount: 0,
   });
   const [donations, setDonations] = useState<Donation[]>([]);
-  const [activeTab, setActiveTab] = useState<"webhook" | "simulator" | "logs">("webhook");
+  const [activeTab, setActiveTab] = useState<"webhook" | "simulator" | "logs" | "sync">("webhook");
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const [copiedText, setCopiedText] = useState<string | null>(null);
 
   // Simulator state
   const [simDonor, setSimDonor] = useState("Sultan_Roblox");
-  const [simAmount, setSimAmount] = useState(100000);
-  const [simMessage, setSimMessage] = useState("Efek Nuke buat gamemu! 🔥");
+  const [simAmount, setSimAmount] = useState(25000);
+  const [simMessage, setSimMessage] = useState("");
   const [simPlatform, setSimPlatform] = useState<"real" | "bagibagi" | "sociabuzz">("real");
   const [simStatus, setSimStatus] = useState<string | null>(null);
   const [simLoading, setSimLoading] = useState(false);
+
+  // Sync DataStore & Config state
+  const [syncConfig, setSyncConfig] = useState<{
+    presets: { name: string; amount: number; effect: string; desc: string; tag: string; icon: string }[];
+    popupMinAmount: number;
+    cinematicMinAmount: number;
+    globalMinAmount: number;
+    updatedAt?: string;
+  }>({
+    presets: [
+      { name: "Announce", amount: 1000, effect: "announce", desc: "Muncul banner pengumuman saja", tag: "+1K", icon: "📢" },
+      { name: "Cinematic UI", amount: 15000, effect: "cinematic", desc: "Kamera sinematik ke donatur", tag: "+15K", icon: "🎬" },
+      { name: "Nuke", amount: 25000, effect: "nuke", desc: "Ledakan nuklir mengguncang map", tag: "+25K", icon: "💥" },
+      { name: "Phoenix", amount: 30000, effect: "phoenix", desc: "Kebangkitan Phoenix api emas", tag: "+30K", icon: "🔥" },
+      { name: "Gojo", amount: 40000, effect: "gojo", desc: "Hollow Purple Gojo Satoru", tag: "+40K", icon: "🟣" },
+      { name: "Smite", amount: 50000, effect: "smite", desc: "Petir raksasa menyambar map", tag: "+50K", icon: "⚡" },
+      { name: "Endowment", amount: 80000, effect: "endowment", desc: "Aura malaikat suci & avatar raksasa", tag: "+80K", icon: "👑" },
+      { name: "Black Hole", amount: 100000, effect: "blackhole", desc: "Singularitas gravitasi menyedot map", tag: "+100K", icon: "🌌" },
+    ],
+    popupMinAmount: 1000,
+    cinematicMinAmount: 15000,
+    globalMinAmount: 25000,
+  });
+  const [syncedDonors, setSyncedDonors] = useState<
+    { userId: string; username: string; displayName: string; total: number; updatedAt: string }[]
+  >([]);
+  const [syncSaving, setSyncSaving] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
 
   // Interior Guide & Filter state
   const [showGuide, setShowGuide] = useState(false);
@@ -154,6 +182,19 @@ export default function DashboardPage() {
     setTimeout(() => setCopiedText(null), 2000);
   };
 
+  const fetchSync = useCallback(async (key: string) => {
+    try {
+      const res = await fetch(`/api/sync?key=${encodeURIComponent(key)}`);
+      const data = await res.json();
+      if (data.ok) {
+        if (data.config) setSyncConfig(data.config);
+        if (Array.isArray(data.donors)) setSyncedDonors(data.donors);
+      }
+    } catch (err) {
+      console.error("Fetch sync error:", err);
+    }
+  }, []);
+
   const fetchStats = useCallback(async (key: string) => {
     try {
       const res = await fetch(`/api/stats?key=${encodeURIComponent(key)}`);
@@ -165,10 +206,11 @@ export default function DashboardPage() {
           setCurrentUser(data.keyRecord);
         }
       }
+      fetchSync(key);
     } catch (err) {
       console.error("Fetch stats error:", err);
     }
-  }, []);
+  }, [fetchSync]);
 
   const verifyAndLogin = useCallback(
     async (key: string) => {
@@ -661,13 +703,7 @@ export default function DashboardPage() {
     return d.platform === logFilter;
   });
 
-  const effectPresets = [
-    { name: "Smite", amount: 50000, desc: "Petir raksasa menyambar map", tag: "LIGHT VFX", icon: "⚡" },
-    { name: "Nuke", amount: 100000, desc: "Ledakan nuklir mengguncang layar", tag: "KABOOM", icon: "💥" },
-    { name: "Meteor", amount: 250000, desc: "Hujan meteor kehancuran total", tag: "CATACLYSM", icon: "☄️" },
-    { name: "Black Hole", amount: 1000000, desc: "Singularitas gravitasi menyedot map", tag: "SINGULARITY", icon: "🌌" },
-    { name: "Angel Endowment", amount: 2500000, desc: "Aura malaikat suci & avatar raksasa", tag: "LEGENDARY", icon: "👑" },
-  ];
+  const effectPresets = syncConfig.presets;
 
   return (
     <div className="min-h-screen bg-[#06070a] text-slate-100 antialiased matrix-grid-overlay relative selection:bg-amber-500/30 selection:text-amber-200">
@@ -889,6 +925,17 @@ export default function DashboardPage() {
           >
             <Clock className="w-4 h-4 text-amber-400" />
             Riwayat Transaksi Live ({donations.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("sync")}
+            className={`py-2.5 px-4 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
+              activeTab === "sync"
+                ? "bg-gradient-to-r from-amber-500/20 to-amber-600/15 text-amber-300 border border-amber-500/35 shadow-sm shadow-amber-500/10"
+                : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
+            }`}
+          >
+            <RefreshCw className="w-4 h-4 text-amber-400" />
+            Sync DataStore &amp; Config ({syncedDonors.length})
           </button>
         </div>
 
@@ -1282,7 +1329,6 @@ Config.Backend = {
                     type="button"
                     onClick={() => {
                       setSimAmount(preset.amount);
-                      setSimMessage(`Efek ${preset.name} Rp ${preset.amount.toLocaleString()}! 🔥`);
                     }}
                     className={`p-3.5 rounded-2xl border text-left transition cursor-pointer relative overflow-hidden ${
                       simAmount === preset.amount
@@ -1500,6 +1546,193 @@ Config.Backend = {
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB 4: SYNC DATASTORE & CONFIG */}
+        {activeTab === "sync" && (
+          <div className="space-y-6">
+            <div className="p-6 sm:p-8 rounded-3xl card-obsidian-luxury border border-white/10 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-black text-white flex items-center gap-2">
+                    <Cpu className="w-5 h-5 text-amber-400" />
+                    Sinkronisasi Config &amp; Preset Tier
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Atur nominal preset &amp; threshold di sini agar tersinkron otomatis dengan Roblox Worker (`KalssDonateRealConfig`).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={syncSaving}
+                  onClick={async () => {
+                    setSyncSaving(true);
+                    setSyncStatus(null);
+                    try {
+                      const res = await fetch("/api/sync", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          key: currentKey,
+                          action: "save_config",
+                          config: syncConfig,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (data.ok) {
+                        setSyncConfig(data.config);
+                        setSyncStatus("✅ Config & preset tersimpan! Roblox server akan sinkron otomatis.");
+                      } else {
+                        setSyncStatus("❌ Gagal menyimpan: " + (data.error || "unknown"));
+                      }
+                    } catch {
+                      setSyncStatus("❌ Gagal menghubungi server.");
+                    } finally {
+                      setSyncSaving(false);
+                    }
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black text-xs hover:brightness-110 transition cursor-pointer disabled:opacity-50"
+                >
+                  {syncSaving ? "Menyimpan..." : "Simpan & Sync ke Roblox"}
+                </button>
+              </div>
+
+              {syncStatus && (
+                <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-200">
+                  {syncStatus}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">Popup Announce Min (Rp)</label>
+                  <input
+                    type="number"
+                    value={syncConfig.popupMinAmount}
+                    onChange={(e) => setSyncConfig({ ...syncConfig, popupMinAmount: Number(e.target.value) })}
+                    className="w-full px-3.5 py-2 bg-[#080a10] border border-white/10 rounded-xl text-xs text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">Cinematic UI Min (Rp)</label>
+                  <input
+                    type="number"
+                    value={syncConfig.cinematicMinAmount}
+                    onChange={(e) => setSyncConfig({ ...syncConfig, cinematicMinAmount: Number(e.target.value) })}
+                    className="w-full px-3.5 py-2 bg-[#080a10] border border-white/10 rounded-xl text-xs text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">Global Broadcast Min (Rp)</label>
+                  <input
+                    type="number"
+                    value={syncConfig.globalMinAmount}
+                    onChange={(e) => setSyncConfig({ ...syncConfig, globalMinAmount: Number(e.target.value) })}
+                    className="w-full px-3.5 py-2 bg-[#080a10] border border-white/10 rounded-xl text-xs text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-xs font-bold text-slate-300">Daftar Preset Tier:</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {syncConfig.presets.map((p, idx) => (
+                    <div key={idx} className="p-3 rounded-2xl bg-[#080a10] border border-white/10 flex items-center gap-2">
+                      <span className="text-base">{p.icon}</span>
+                      <input
+                        type="text"
+                        value={p.name}
+                        onChange={(e) => {
+                          const next = [...syncConfig.presets];
+                          next[idx] = { ...next[idx], name: e.target.value };
+                          setSyncConfig({ ...syncConfig, presets: next });
+                        }}
+                        className="w-28 px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-white font-semibold"
+                      />
+                      <input
+                        type="text"
+                        value={p.effect}
+                        onChange={(e) => {
+                          const next = [...syncConfig.presets];
+                          next[idx] = { ...next[idx], effect: e.target.value };
+                          setSyncConfig({ ...syncConfig, presets: next });
+                        }}
+                        className="w-24 px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-[11px] text-amber-300 font-mono"
+                      />
+                      <input
+                        type="number"
+                        value={p.amount}
+                        onChange={(e) => {
+                          const next = [...syncConfig.presets];
+                          next[idx] = { ...next[idx], amount: Number(e.target.value) };
+                          setSyncConfig({ ...syncConfig, presets: next });
+                        }}
+                        className="flex-1 px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-emerald-400 font-mono"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 sm:p-8 rounded-3xl card-obsidian-luxury border border-white/10 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-black text-white flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                    DataStore Donatur Tersinkron ({syncedDonors.length})
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Data top donatur dari Roblox DataStore (`KalssDonateRealBoard`) yang tersinkron ke dashboard.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => fetchSync(currentKey)}
+                  className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Refresh
+                </button>
+              </div>
+
+              {syncedDonors.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-400 bg-[#080a10] rounded-2xl border border-white/5">
+                  Belum ada data DataStore yang masuk dari server Roblox. Jalankan server/Playtest dengan `EnableInStudio = true` untuk sync otomatis.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-white/10 text-slate-400">
+                        <th className="py-2.5 px-3">Rank</th>
+                        <th className="py-2.5 px-3">Donatur</th>
+                        <th className="py-2.5 px-3">UserId</th>
+                        <th className="py-2.5 px-3">Total Donasi</th>
+                        <th className="py-2.5 px-3">Last Sync</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {syncedDonors.map((d, i) => (
+                        <tr key={d.userId} className="hover:bg-white/[0.02]">
+                          <td className="py-2.5 px-3 font-mono font-bold text-amber-400">#{i + 1}</td>
+                          <td className="py-2.5 px-3 font-semibold text-white">
+                            {d.displayName} <span className="text-slate-400 font-normal">(@{d.username})</span>
+                          </td>
+                          <td className="py-2.5 px-3 font-mono text-slate-400">{d.userId}</td>
+                          <td className="py-2.5 px-3 font-mono font-bold text-emerald-400">
+                            Rp {Number(d.total || 0).toLocaleString("id-ID")}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-400 font-mono text-[11px]">
+                            {new Date(d.updatedAt).toLocaleTimeString("id-ID")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>

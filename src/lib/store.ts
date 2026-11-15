@@ -30,9 +30,57 @@ export interface DonationItem {
   processedAt?: string;
 }
 
+export interface SyncedPreset {
+  name: string;
+  amount: number;
+  effect: string;
+  desc: string;
+  tag: string;
+  icon: string;
+}
+
+export interface SyncedDonorRecord {
+  userId: string;
+  username: string;
+  displayName: string;
+  total: number;
+  updatedAt: string;
+}
+
+export interface SyncedGameConfig {
+  presets: SyncedPreset[];
+  popupMinAmount: number;
+  cinematicMinAmount: number;
+  globalMinAmount: number;
+  updatedAt: string;
+  customizedByWeb?: boolean;
+}
+
 interface DataStore {
   keys: ApiKeyRecord[];
   donations: DonationItem[];
+  syncedConfigs?: Record<string, SyncedGameConfig>;
+  syncedDonors?: Record<string, SyncedDonorRecord[]>;
+}
+
+export function getDefaultSyncConfig(): SyncedGameConfig {
+  return {
+    presets: [
+      { name: "Announce", amount: 1000, effect: "announce", desc: "Muncul banner pengumuman saja", tag: "+1K", icon: "📢" },
+      { name: "Cinematic UI", amount: 15000, effect: "cinematic", desc: "Kamera sinematik ke donatur", tag: "+15K", icon: "🎬" },
+      { name: "Nuke", amount: 25000, effect: "nuke", desc: "Ledakan nuklir mengguncang map", tag: "+25K", icon: "💥" },
+      { name: "Phoenix", amount: 30000, effect: "phoenix", desc: "Kebangkitan Phoenix api emas", tag: "+30K", icon: "🔥" },
+      { name: "Gojo", amount: 40000, effect: "gojo", desc: "Hollow Purple Gojo Satoru", tag: "+40K", icon: "🟣" },
+      { name: "Smite", amount: 50000, effect: "smite", desc: "Petir raksasa menyambar map", tag: "+50K", icon: "⚡" },
+      { name: "Endowment", amount: 80000, effect: "endowment", desc: "Aura malaikat suci & avatar raksasa", tag: "+80K", icon: "👑" },
+      { name: "Black Hole", amount: 100000, effect: "blackhole", desc: "Singularitas gravitasi menyedot map", tag: "+100K", icon: "🌌" },
+    ],
+    popupMinAmount: 1000,
+    cinematicMinAmount: 15000,
+    globalMinAmount: 25000,
+    updatedAt: new Date().toISOString(),
+    customizedByWeb: false,
+  };
 }
 
 // Global in-memory storage fallback for serverless
@@ -308,5 +356,69 @@ export const KalssStore = {
       pendingCount,
       keyCount,
     };
+  },
+
+  getSyncState(apiKey: string): { config: SyncedGameConfig; donors: SyncedDonorRecord[] } {
+    const data = loadData();
+    if (!data.syncedConfigs) data.syncedConfigs = {};
+    if (!data.syncedDonors) data.syncedDonors = {};
+    if (!data.syncedConfigs[apiKey]) {
+      data.syncedConfigs[apiKey] = getDefaultSyncConfig();
+      saveData(data);
+    }
+    return {
+      config: data.syncedConfigs[apiKey],
+      donors: data.syncedDonors[apiKey] || [],
+    };
+  },
+
+  saveSyncConfig(
+    apiKey: string,
+    partial: Partial<SyncedGameConfig>,
+    fromWeb = true
+  ): SyncedGameConfig {
+    const data = loadData();
+    if (!data.syncedConfigs) data.syncedConfigs = {};
+    const current = data.syncedConfigs[apiKey] || getDefaultSyncConfig();
+    const next: SyncedGameConfig = {
+      presets: Array.isArray(partial.presets) && partial.presets.length > 0 ? partial.presets : current.presets,
+      popupMinAmount: typeof partial.popupMinAmount === "number" ? partial.popupMinAmount : current.popupMinAmount,
+      cinematicMinAmount: typeof partial.cinematicMinAmount === "number" ? partial.cinematicMinAmount : current.cinematicMinAmount,
+      globalMinAmount: typeof partial.globalMinAmount === "number" ? partial.globalMinAmount : current.globalMinAmount,
+      updatedAt: new Date().toISOString(),
+      customizedByWeb: fromWeb ? true : current.customizedByWeb,
+    };
+    data.syncedConfigs[apiKey] = next;
+    saveData(data);
+    return next;
+  },
+
+  upsertSyncedDonors(apiKey: string, incoming: SyncedDonorRecord[]): SyncedDonorRecord[] {
+    const data = loadData();
+    if (!data.syncedDonors) data.syncedDonors = {};
+    const map = new Map<string, SyncedDonorRecord>();
+    for (const existing of data.syncedDonors[apiKey] || []) {
+      map.set(String(existing.userId), existing);
+    }
+    const nowIso = new Date().toISOString();
+    for (const item of incoming) {
+      const uid = String(item.userId || "").trim();
+      if (!uid) continue;
+      const prev = map.get(uid);
+      const nextTotal = Math.max(Number(item.total) || 0, prev ? prev.total : 0);
+      map.set(uid, {
+        userId: uid,
+        username: String(item.username || prev?.username || "Player"),
+        displayName: String(item.displayName || item.username || prev?.displayName || "Player"),
+        total: nextTotal,
+        updatedAt: nowIso,
+      });
+    }
+    const merged = Array.from(map.values())
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 100);
+    data.syncedDonors[apiKey] = merged;
+    saveData(data);
+    return merged;
   },
 };

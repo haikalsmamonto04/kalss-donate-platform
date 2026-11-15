@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     // BagiBagi payload standard
     const amount = Number(body.amount || body.amount_raw || body.nominal || 0);
     const donorName = String(body.sender || body.name || body.donator_name || "Anonymous");
-    const message = String(body.message || body.notes || "Terima kasih atas dukungannya!");
+    const message = String(body.message ?? body.notes ?? body.comment ?? body.pesan ?? "").trim();
     const targetName = String(body.targetName || body.recipient || "");
 
     if (amount <= 0) {

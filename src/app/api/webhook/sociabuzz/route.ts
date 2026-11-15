@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     // Sociabuzz payload standard
     const amount = Number(body.amount || body.amount_raw || body.total || 0);
     const donorName = String(body.supporter_name || body.name || body.donator_name || "Anonymous");
-    const message = String(body.message || body.notes || "Terima kasih atas dukungannya!");
+    const message = String(body.message ?? body.notes ?? body.support_message ?? body.comment ?? body.pesan ?? "").trim();
     const targetName = String(body.targetName || body.recipient || "");
 
     if (amount <= 0) {

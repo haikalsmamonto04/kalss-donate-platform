@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     const apiKey = body.apiKey || KalssStore.getKeys()[0]?.key;
     const amount = Number(body.amount) || 100000;
     const donorName = body.donorName || "TestDonor";
-    const message = body.message || "Uji coba donasi efek dari dashboard!";
+    const message = typeof body.message === "string" ? body.message.trim() : "";
     const targetName = body.targetName || "";
 
     if (!apiKey) {

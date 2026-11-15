@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     // Real donation payload standard
     const amount = Number(body.amount_raw || body.amount || 0);
     const donorName = String(body.donator_name || body.donor_name || body.username || "Anonymous");
-    const message = String(body.message || "Terima kasih atas dukungannya!");
+    const message = String(body.message ?? body.notes ?? body.comment ?? body.pesan ?? "").trim();
     const targetName = String(body.targetName || body.recipient || "");
 
     if (amount <= 0) {
