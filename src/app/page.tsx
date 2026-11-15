@@ -848,8 +848,9 @@ export default function DashboardPage() {
   const effectPresets = syncConfig.presets;
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-[#06070a] text-slate-100 antialiased matrix-grid-overlay relative selection:bg-amber-500/30 selection:text-amber-200">
-      {/* Top Ambient Glow */}
+    <div className="min-h-screen w-full overflow-x-clip bg-[#06070a] text-slate-100 antialiased relative selection:bg-amber-500/30 selection:text-amber-200">
+      {/* Subtle Geometric Matrix Grid & Top Ambient Glow */}
+      <div className="absolute inset-0 matrix-grid-overlay pointer-events-none" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-[1100px] h-[340px] bg-gradient-to-b from-amber-500/10 via-amber-600/5 to-transparent blur-3xl pointer-events-none" />
 
       {/* Top Navigation */}

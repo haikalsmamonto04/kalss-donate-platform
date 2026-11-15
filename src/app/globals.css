@@ -36,8 +36,17 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  overflow-x: hidden;
+  overflow-x: clip;
   min-height: 100vh;
+}
+
+button,
+a,
+[role="button"],
+input,
+select,
+textarea {
+  touch-action: manipulation;
 }
 
 ::selection {
@@ -168,6 +177,7 @@ body {
   transform: skewX(-20deg);
   transition: left 0.8s ease;
   z-index: 1;
+  pointer-events: none;
 }
 .btn-gold-shimmer:hover::after {
   left: 140%;
