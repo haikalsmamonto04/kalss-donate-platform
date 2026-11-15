@@ -524,7 +524,7 @@ export default function DashboardPage() {
         <div className="absolute bottom-0 right-1/4 w-[42rem] h-[26rem] bg-amber-600/[0.04] rounded-full blur-[120px] pointer-events-none" />
 
         {/* TOP EXECUTIVE BAR */}
-        <header className="relative z-20 w-full px-6 py-5 lg:px-12 flex items-center justify-between border-b border-amber-500/10 backdrop-blur-md bg-[#06070a]/60">
+        <header className="relative z-20 w-full px-4 sm:px-6 py-4 sm:py-5 lg:px-12 flex items-center justify-between gap-3 border-b border-amber-500/10 backdrop-blur-md bg-[#06070a]/60">
           <div className="flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/20 ring-1 ring-white/20">
               <Coins className="w-5 h-5 text-slate-950" />
@@ -848,66 +848,67 @@ export default function DashboardPage() {
   const effectPresets = syncConfig.presets;
 
   return (
-    <div className="min-h-screen bg-[#06070a] text-slate-100 antialiased matrix-grid-overlay relative selection:bg-amber-500/30 selection:text-amber-200">
+    <div className="min-h-screen w-full overflow-x-hidden bg-[#06070a] text-slate-100 antialiased matrix-grid-overlay relative selection:bg-amber-500/30 selection:text-amber-200">
       {/* Top Ambient Glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1100px] h-[340px] bg-gradient-to-b from-amber-500/10 via-amber-600/5 to-transparent blur-3xl pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-[1100px] h-[340px] bg-gradient-to-b from-amber-500/10 via-amber-600/5 to-transparent blur-3xl pointer-events-none" />
 
       {/* Top Navigation */}
       <header className="border-b border-white/10 bg-[#06070a]/85 backdrop-blur-xl sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/25 border border-amber-300/40">
-              <Coins className="w-6 h-6 text-slate-950 font-bold" />
+        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 min-h-16 sm:h-20 py-2.5 sm:py-0 flex items-center justify-between gap-2.5 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/25 border border-amber-300/40 shrink-0">
+              <Coins className="w-5 h-5 sm:w-6 sm:h-6 text-slate-950 font-bold" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-black text-sm sm:text-base tracking-tight text-white flex items-center gap-1.5">
-                  KALSS STUDIO <span className="text-amber-400">REAL GATEWAY</span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                <span className="font-black text-xs sm:text-base tracking-tight text-white flex flex-wrap items-center gap-x-1.5 leading-tight">
+                  <span className="whitespace-nowrap">KALSS STUDIO</span>
+                  <span className="text-amber-400 whitespace-nowrap">REAL GATEWAY</span>
                 </span>
-                <span className="text-[10px] font-mono uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 hidden sm:inline-block">
+                <span className="text-[10px] font-mono uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 hidden md:inline-block shrink-0">
                   LIFETIME LICENSE
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">
-                Pusat Integrasi Webhook & Donasi Real In-Game Roblox
+              <p className="hidden sm:block text-[11px] text-slate-400 truncate">
+                Pusat Integrasi Webhook &amp; Donasi Real In-Game Roblox
               </p>
             </div>
           </div>
 
           {/* User Profile & Token Info */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <div className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-mono text-[10px]">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               GATEWAY ACTIVE · 18ms
             </div>
 
-            <div className="flex items-center gap-3 px-3.5 py-1.5 rounded-2xl bg-[#090b10] border border-white/10 shadow-inner">
+            <div className="flex items-center gap-2 sm:gap-3 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-[#090b10] border border-white/10 shadow-inner max-w-[148px] sm:max-w-none">
               {currentUser.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={currentUser.avatarUrl}
                   alt="Avatar"
-                  className="w-8 h-8 rounded-full ring-2 ring-amber-400/80 bg-slate-950 object-cover shadow-sm shadow-amber-500/30"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full ring-2 ring-amber-400/80 bg-slate-950 object-cover shadow-sm shadow-amber-500/30 shrink-0"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-slate-800 ring-2 ring-amber-400/40 flex items-center justify-center">
-                  <Gamepad2 className="w-4 h-4 text-amber-400" />
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-800 ring-2 ring-amber-400/40 flex items-center justify-center shrink-0">
+                  <Gamepad2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
                 </div>
               )}
-              <div className="text-left">
-                <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                  {currentUser.robloxUsername || currentUser.name}
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400" />
+              <div className="text-left min-w-0">
+                <div className="text-[11px] sm:text-xs font-bold text-white flex items-center gap-1 min-w-0">
+                  <span className="truncate">{currentUser.robloxUsername || currentUser.name}</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400 shrink-0" />
                 </div>
-                <div className="text-[10px] font-mono text-amber-400/80">
-                  {currentKey.substring(0, 14)}...{currentKey.substring(currentKey.length - 4)}
+                <div className="text-[9px] sm:text-[10px] font-mono text-amber-400/80 truncate">
+                  {currentKey.substring(0, 10)}...{currentKey.substring(currentKey.length - 4)}
                 </div>
               </div>
             </div>
 
             <button
               onClick={() => copyToClipboard(currentKey, "activeToken")}
-              className="p-2.5 rounded-xl bg-[#090b10] border border-white/10 hover:border-amber-400/40 text-slate-300 hover:text-amber-300 transition shadow-sm cursor-pointer"
+              className="p-2 sm:p-2.5 rounded-xl bg-[#090b10] border border-white/10 hover:border-amber-400/40 text-slate-300 hover:text-amber-300 transition shadow-sm cursor-pointer shrink-0"
               title="Salin Token Game Saya"
             >
               {copiedText === "activeToken" ? (
@@ -919,7 +920,7 @@ export default function DashboardPage() {
 
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-300 text-xs font-semibold transition cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-300 text-xs font-semibold transition cursor-pointer shrink-0"
               title="Ganti Token / Keluar"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -930,25 +931,25 @@ export default function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7 relative z-10">
+      <main className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-5 sm:space-y-7 relative z-10">
         
         {/* Bento Metric Cards (Obsidian 24K Gold) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5">
           
           {/* Card 1: Total Donasi */}
-          <div className="p-6 rounded-3xl card-obsidian-luxury relative overflow-hidden group hover:border-amber-400/50 transition-all duration-300 flex flex-col justify-between">
+          <div className="p-5 sm:p-6 rounded-2xl sm:rounded-3xl card-obsidian-luxury relative overflow-hidden group hover:border-amber-400/50 transition-all duration-300 flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono uppercase tracking-widest text-amber-400/80 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-widest text-amber-400/80 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
                   TOTAL DONASI REAL GAME INI
                 </span>
-                <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 group-hover:scale-105 transition-transform">
-                  <Coins className="w-5 h-5" />
+                <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 group-hover:scale-105 transition-transform shrink-0">
+                  <Coins className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
               </div>
-              <div className="mt-3">
-                <div className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-500 tracking-tight">
+              <div className="mt-2.5 sm:mt-3">
+                <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-500 tracking-tight break-words">
                   Rp {stats.totalAmount.toLocaleString("id-ID")}
                 </div>
                 <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1.5">
@@ -967,24 +968,24 @@ export default function DashboardPage() {
           </div>
 
           {/* Card 2: Total Transaksi */}
-          <div className="p-6 rounded-3xl card-obsidian-luxury relative overflow-hidden group hover:border-amber-400/50 transition-all duration-300 flex flex-col justify-between">
+          <div className="p-5 sm:p-6 rounded-2xl sm:rounded-3xl card-obsidian-luxury relative overflow-hidden group hover:border-amber-400/50 transition-all duration-300 flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                   TOTAL TRANSAKSI TEREKSEKUSI
                 </span>
-                <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 group-hover:scale-105 transition-transform">
-                  <Flame className="w-5 h-5 text-amber-400" />
+                <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 group-hover:scale-105 transition-transform shrink-0">
+                  <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
                 </div>
               </div>
-              <div className="mt-3">
-                <div className="text-3xl sm:text-4xl font-black text-white tracking-tight flex items-baseline gap-2">
+              <div className="mt-2.5 sm:mt-3">
+                <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight flex items-baseline gap-2">
                   {stats.totalCount}{" "}
                   <span className="text-sm font-normal text-slate-400">donasi</span>
                 </div>
                 <p className="text-xs text-slate-400 mt-1.5">
-                  Semua donasi otomatis memicu efek sinematik & podium di map
+                  Semua donasi otomatis memicu efek sinematik &amp; podium di map
                 </p>
               </div>
             </div>
@@ -998,26 +999,26 @@ export default function DashboardPage() {
           </div>
 
           {/* Card 3: Status Worker */}
-          <div className="p-6 rounded-3xl card-obsidian-luxury relative overflow-hidden group hover:border-emerald-400/50 transition-all duration-300 flex flex-col justify-between">
+          <div className="sm:col-span-2 lg:col-span-1 p-5 sm:p-6 rounded-2xl sm:rounded-3xl card-obsidian-luxury relative overflow-hidden group hover:border-emerald-400/50 transition-all duration-300 flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
-                  <span className="relative flex h-2 w-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2 shrink-0">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                   </span>
                   STATUS ROBLOX WORKER
                 </span>
-                <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <Radio className="w-5 h-5 animate-pulse" />
+                <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                  <Radio className="w-4 h-4 sm:w-5 sm:h-5 animate-pulse" />
                 </div>
               </div>
-              <div className="mt-3">
-                <div className="text-3xl sm:text-4xl font-black text-emerald-400 tracking-tight flex items-center gap-2">
+              <div className="mt-2.5 sm:mt-3">
+                <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-emerald-400 tracking-tight flex items-center gap-2">
                   Siap Jemput
                 </div>
-                <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1.5 flex-wrap">
+                  <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   <span className="text-slate-300 font-mono font-semibold">{stats.pendingCount}</span> transaksi antrean pending · ~18ms latency
                 </p>
               </div>
@@ -1034,49 +1035,49 @@ export default function DashboardPage() {
         </div>
 
         {/* Tab Controls (Obsidian Pill Segmented Bar) */}
-        <div className="flex items-center justify-start p-1.5 rounded-2xl bg-[#090b10] border border-white/10 w-fit max-w-full overflow-x-auto space-x-1.5">
+        <div className="flex items-center justify-start p-1.5 rounded-2xl bg-[#090b10] border border-white/10 w-full sm:w-fit max-w-full overflow-x-auto gap-1.5">
           <button
             onClick={() => setActiveTab("webhook")}
-            className={`py-2.5 px-4 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
+            className={`shrink-0 whitespace-nowrap py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
               activeTab === "webhook"
                 ? "bg-gradient-to-r from-amber-500/20 to-amber-600/15 text-amber-300 border border-amber-500/35 shadow-sm shadow-amber-500/10"
                 : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
             }`}
           >
-            <Key className="w-4 h-4 text-amber-400" />
-            Pengaturan API & Webhook
+            <Key className="w-4 h-4 text-amber-400 shrink-0" />
+            Pengaturan API &amp; Webhook
           </button>
           <button
             onClick={() => setActiveTab("simulator")}
-            className={`py-2.5 px-4 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
+            className={`shrink-0 whitespace-nowrap py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
               activeTab === "simulator"
                 ? "bg-gradient-to-r from-amber-500/20 to-amber-600/15 text-amber-300 border border-amber-500/35 shadow-sm shadow-amber-500/10"
                 : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
             }`}
           >
-            <Flame className="w-4 h-4 text-amber-400" />
+            <Flame className="w-4 h-4 text-amber-400 shrink-0" />
             Simulator Uji Coba Efek
           </button>
           <button
             onClick={() => setActiveTab("logs")}
-            className={`py-2.5 px-4 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
+            className={`shrink-0 whitespace-nowrap py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
               activeTab === "logs"
                 ? "bg-gradient-to-r from-amber-500/20 to-amber-600/15 text-amber-300 border border-amber-500/35 shadow-sm shadow-amber-500/10"
                 : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
             }`}
           >
-            <Clock className="w-4 h-4 text-amber-400" />
+            <Clock className="w-4 h-4 text-amber-400 shrink-0" />
             Riwayat Transaksi Live ({donations.length})
           </button>
           <button
             onClick={() => setActiveTab("sync")}
-            className={`py-2.5 px-4 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
+            className={`shrink-0 whitespace-nowrap py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
               activeTab === "sync"
                 ? "bg-gradient-to-r from-amber-500/20 to-amber-600/15 text-amber-300 border border-amber-500/35 shadow-sm shadow-amber-500/10"
                 : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
             }`}
           >
-            <RefreshCw className="w-4 h-4 text-amber-400" />
+            <RefreshCw className="w-4 h-4 text-amber-400 shrink-0" />
             Sync DataStore &amp; Config ({syncedDonors.length})
           </button>
         </div>
@@ -1086,7 +1087,7 @@ export default function DashboardPage() {
           <div className="space-y-6">
 
             {/* Place Verification & Community Team Box */}
-            <div className="p-6 sm:p-8 rounded-3xl card-obsidian-luxury border border-amber-500/20 space-y-5">
+            <div className="p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl card-obsidian-luxury border border-amber-500/20 space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-black text-white flex items-center gap-2">
@@ -1264,7 +1265,7 @@ export default function DashboardPage() {
             </div>
             
             {/* Webhook URLs Box */}
-            <div className="p-6 sm:p-8 rounded-3xl card-obsidian-luxury border border-white/10 space-y-6">
+            <div className="p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl card-obsidian-luxury border border-white/10 space-y-5 sm:space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-black text-white flex items-center gap-2">
@@ -1284,18 +1285,18 @@ export default function DashboardPage() {
               <div className="space-y-4">
                 
                 {/* 1. Real / QRIS Universal Card */}
-                <div className="card-brand-real p-5 sm:p-6 rounded-3xl relative overflow-hidden transition-all duration-300">
+                <div className="card-brand-real p-4 sm:p-6 rounded-2xl sm:rounded-3xl relative overflow-hidden transition-all duration-300">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400">
+                    <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shrink-0">
                         <QrCode className="w-4 h-4" />
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-black text-white font-mono">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                          <span className="text-xs sm:text-sm font-black text-white font-mono">
                             Saweria Webhook URL
                           </span>
-                          <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                          <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 shrink-0">
                             SAWERIA.CO
                           </span>
                         </div>
@@ -1354,18 +1355,18 @@ export default function DashboardPage() {
                 </div>
 
                 {/* 2. BagiBagi.co.id Card */}
-                <div className="card-brand-bagibagi p-5 sm:p-6 rounded-3xl relative overflow-hidden transition-all duration-300">
+                <div className="card-brand-bagibagi p-4 sm:p-6 rounded-2xl sm:rounded-3xl relative overflow-hidden transition-all duration-300">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-orange-500/20 border border-orange-400/40 flex items-center justify-center text-orange-400 font-bold text-xs">
+                    <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-orange-500/20 border border-orange-400/40 flex items-center justify-center text-orange-400 font-bold text-xs shrink-0">
                         BB
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-black text-white font-mono">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                          <span className="text-xs sm:text-sm font-black text-white font-mono">
                             BagiBagi Webhook URL
                           </span>
-                          <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-400/40">
+                          <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-400/40 shrink-0">
                             BAGIBAGI.CO.ID
                           </span>
                         </div>
@@ -1424,18 +1425,18 @@ export default function DashboardPage() {
                 </div>
 
                 {/* 3. SociaBuzz.com Card */}
-                <div className="card-brand-sociabuzz p-5 sm:p-6 rounded-3xl relative overflow-hidden transition-all duration-300">
+                <div className="card-brand-sociabuzz p-4 sm:p-6 rounded-2xl sm:rounded-3xl relative overflow-hidden transition-all duration-300">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-400 font-bold text-xs">
+                    <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-400 font-bold text-xs shrink-0">
                         SB
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-black text-white font-mono">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                          <span className="text-xs sm:text-sm font-black text-white font-mono">
                             Sociabuzz Webhook URL
                           </span>
-                          <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/40">
+                          <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/40 shrink-0">
                             SOCIABUZZ.COM
                           </span>
                         </div>
@@ -1510,8 +1511,8 @@ export default function DashboardPage() {
                 </button>
 
                 {showGuide && (
-                  <div className="mt-3 p-5 rounded-2xl bg-[#07090e] border border-white/10 space-y-4 luxury-fade-up">
-                    <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+                  <div className="mt-3 p-4 sm:p-5 rounded-2xl bg-[#07090e] border border-white/10 space-y-4 luxury-fade-up">
+                    <div className="flex flex-wrap items-center gap-2 border-b border-white/10 pb-3">
                       <button
                         type="button"
                         onClick={() => setActiveGuideTab("bagibagi")}
@@ -1559,7 +1560,7 @@ export default function DashboardPage() {
                     {activeGuideTab === "sociabuzz" && (
                       <ol className="list-decimal list-inside space-y-2 text-xs text-slate-300 leading-relaxed font-sans">
                         <li>Login ke akun kamu di <a href="https://sociabuzz.com" target="_blank" rel="noreferrer" className="text-indigo-400 underline font-semibold">sociabuzz.com</a>.</li>
-                        <li>Masuk ke menu <span className="font-semibold text-white">Edit Profile</span> $\to$ pilih <span className="font-semibold text-white">Webhook Notification</span>.</li>
+                        <li>Masuk ke menu <span className="font-semibold text-white">Edit Profile</span> &rarr; pilih <span className="font-semibold text-white">Webhook Notification</span>.</li>
                         <li>Salin <span className="font-mono text-indigo-300">Sociabuzz Webhook URL</span> di atas dan masukkan ke kolom yang tersedia.</li>
                         <li>Klik <span className="font-semibold text-white">Simpan / Activate</span>. Webhook siap menerima payload notifikasi transaksi instan!</li>
                       </ol>
@@ -1579,7 +1580,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Roblox Studio Integration Config Box */}
-            <div className="p-6 sm:p-8 rounded-3xl card-obsidian-luxury border border-white/10 space-y-4">
+            <div className="p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl card-obsidian-luxury border border-white/10 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-black text-white flex items-center gap-2">
@@ -1634,7 +1635,7 @@ Config.Backend = {
 
         {/* TAB 2: SIMULATOR */}
         {activeTab === "simulator" && (
-          <div className="p-6 sm:p-8 rounded-3xl card-obsidian-luxury border border-white/10 max-w-3xl mx-auto space-y-6">
+          <div className="p-4 sm:p-8 rounded-2xl sm:rounded-3xl card-obsidian-luxury border border-white/10 max-w-3xl mx-auto space-y-5 sm:space-y-6">
             <div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 font-mono text-[10px] uppercase tracking-wider mb-2">
                 <Cpu className="w-3 h-3" /> REAL-TIME DISPATCH ENGINE
@@ -1653,7 +1654,7 @@ Config.Backend = {
               <label className="text-xs font-semibold text-slate-300 block">
                 Pilih Preset Efek Sinematik:
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
                 {effectPresets.map((preset) => (
                   <button
                     key={preset.name}
@@ -1726,13 +1727,13 @@ Config.Backend = {
                 <label className="text-xs font-semibold text-slate-300 block mb-1.5">
                   Penyedia Gateway
                 </label>
-                <div className="grid grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
                   {(["real", "bagibagi", "sociabuzz"] as const).map((plat) => (
                     <button
                       key={plat}
                       type="button"
                       onClick={() => setSimPlatform(plat)}
-                      className={`py-2.5 px-3 rounded-xl border text-xs font-bold uppercase transition cursor-pointer ${
+                      className={`py-2.5 px-2 sm:px-3 rounded-xl border text-[11px] sm:text-xs font-bold uppercase transition cursor-pointer truncate ${
                         simPlatform === plat
                           ? "bg-amber-500/20 border-amber-400 text-amber-300 shadow-sm shadow-amber-500/10"
                           : "bg-[#080a10] border-white/10 text-slate-400 hover:text-white"
@@ -1765,7 +1766,7 @@ Config.Backend = {
 
         {/* TAB 3: TRANSACTION LOGS */}
         {activeTab === "logs" && (
-          <div className="p-6 sm:p-8 rounded-3xl card-obsidian-luxury border border-white/10 space-y-5">
+          <div className="p-4 sm:p-8 rounded-2xl sm:rounded-3xl card-obsidian-luxury border border-white/10 space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-black text-white flex items-center gap-2">
@@ -1779,7 +1780,7 @@ Config.Backend = {
 
               <div className="flex items-center gap-2.5 flex-wrap">
                 {/* Platform Filters */}
-                <div className="inline-flex items-center p-1 rounded-xl bg-[#090b10] border border-white/10 space-x-1">
+                <div className="inline-flex flex-wrap items-center p-1 rounded-xl bg-[#090b10] border border-white/10 gap-1 max-w-full">
                   {(["all", "real", "bagibagi", "sociabuzz"] as const).map((filter) => (
                     <button
                       key={filter}
@@ -1822,15 +1823,15 @@ Config.Backend = {
               </div>
             ) : (
               <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#07090e]">
-                <table className="w-full text-left text-xs">
+                <table className="w-full min-w-[600px] text-left text-xs">
                   <thead className="text-[11px] font-mono text-slate-400 uppercase tracking-wider border-b border-white/10 bg-[#050608]">
                     <tr>
-                      <th className="py-3 px-4">Waktu</th>
-                      <th className="py-3 px-4">Donatur</th>
-                      <th className="py-3 px-4">Nominal</th>
-                      <th className="py-3 px-4">Pesan</th>
-                      <th className="py-3 px-4">Platform</th>
-                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Waktu</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Donatur</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Nominal</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Pesan</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Platform</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
@@ -1883,7 +1884,7 @@ Config.Backend = {
         {/* TAB 4: SYNC DATASTORE & CONFIG */}
         {activeTab === "sync" && (
           <div className="space-y-6">
-            <div className="p-6 sm:p-8 rounded-3xl card-obsidian-luxury border border-white/10 space-y-5">
+            <div className="p-4 sm:p-8 rounded-2xl sm:rounded-3xl card-obsidian-luxury border border-white/10 space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-black text-white flex items-center gap-2">
@@ -1969,8 +1970,8 @@ Config.Backend = {
                 <div className="text-xs font-bold text-slate-300">Daftar Preset Tier:</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {syncConfig.presets.map((p, idx) => (
-                    <div key={idx} className="p-3 rounded-2xl bg-[#080a10] border border-white/10 flex items-center gap-2">
-                      <span className="text-base">{p.icon}</span>
+                    <div key={idx} className="p-3 rounded-2xl bg-[#080a10] border border-white/10 flex flex-wrap sm:flex-nowrap items-center gap-2">
+                      <span className="text-base shrink-0">{p.icon}</span>
                       <input
                         type="text"
                         value={p.name}
@@ -1979,7 +1980,7 @@ Config.Backend = {
                           next[idx] = { ...next[idx], name: e.target.value };
                           setSyncConfig({ ...syncConfig, presets: next });
                         }}
-                        className="w-28 px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-white font-semibold"
+                        className="flex-1 min-w-[100px] sm:w-28 sm:flex-none px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-white font-semibold"
                       />
                       <input
                         type="text"
@@ -1999,7 +2000,7 @@ Config.Backend = {
                           next[idx] = { ...next[idx], amount: Number(e.target.value) };
                           setSyncConfig({ ...syncConfig, presets: next });
                         }}
-                        className="flex-1 px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-emerald-400 font-mono"
+                        className="w-full sm:w-auto sm:flex-1 px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-emerald-400 font-mono"
                       />
                     </div>
                   ))}
@@ -2007,11 +2008,11 @@ Config.Backend = {
               </div>
             </div>
 
-            <div className="p-6 sm:p-8 rounded-3xl card-obsidian-luxury border border-white/10 space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="p-4 sm:p-8 rounded-2xl sm:rounded-3xl card-obsidian-luxury border border-white/10 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-black text-white flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                    <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
                     DataStore Donatur Tersinkron ({syncedDonors.length})
                   </h3>
                   <p className="text-xs text-slate-400 mt-1">
@@ -2021,7 +2022,7 @@ Config.Backend = {
                 <button
                   type="button"
                   onClick={() => fetchSync(currentKey)}
-                  className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer self-start sm:self-auto shrink-0"
                 >
                   <RefreshCw className="w-3.5 h-3.5" /> Refresh
                 </button>
@@ -2092,16 +2093,16 @@ Config.Backend = {
                   Belum ada data DataStore yang masuk dari server Roblox. Jalankan server/Playtest dengan `EnableInStudio = true` untuk sync otomatis.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
+                <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#07090e]">
+                  <table className="w-full min-w-[600px] text-left border-collapse text-xs">
                     <thead>
                       <tr className="border-b border-white/10 text-slate-400">
-                        <th className="py-2.5 px-3">Rank</th>
-                        <th className="py-2.5 px-3">Donatur</th>
-                        <th className="py-2.5 px-3">UserId</th>
-                        <th className="py-2.5 px-3">Total Donasi</th>
-                        <th className="py-2.5 px-3">Last Sync</th>
-                        <th className="py-2.5 px-3 text-right">Aksi</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Rank</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Donatur</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">UserId</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Total Donasi</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">Last Sync</th>
+                        <th className="py-2.5 px-3 text-right whitespace-nowrap">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
