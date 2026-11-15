@@ -279,6 +279,51 @@ export const KalssStore = {
     return mapDbKey(data);
   },
 
+  async adoptOrFindKey(key: string): Promise<ApiKeyRecord | undefined> {
+    const clean = key.trim();
+    if (!/^kalss_live_[a-zA-Z0-9_]{8,64}$/.test(clean)) {
+      return undefined;
+    }
+    const existing = await this.findKey(clean);
+    if (existing) return existing;
+
+    const nowIso = new Date().toISOString();
+    const adopted: ApiKeyRecord = {
+      id: "adopted-" + Date.now(),
+      key: clean,
+      name: "Game Kalss Studio",
+      verified: false,
+      members: [],
+      createdAt: nowIso,
+      totalAmount: 0,
+      donationCount: 0,
+    };
+
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      data.keys.unshift(adopted);
+      saveLocalData(data);
+      return adopted;
+    }
+
+    const { error } = await sb.from("kalss_keys").insert({
+      key: adopted.key,
+      id: adopted.id,
+      name: adopted.name,
+      verified: false,
+      members: [],
+      total_amount: 0,
+      donation_count: 0,
+      created_at: adopted.createdAt,
+    });
+    if (error) {
+      // In case of race condition, try finding again
+      return await this.findKey(clean);
+    }
+    return adopted;
+  },
+
   async findKeyByUniverseId(universeId: string): Promise<ApiKeyRecord | undefined> {
     const uid = String(universeId || "").trim();
     if (!uid) return undefined;

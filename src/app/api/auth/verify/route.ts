@@ -13,11 +13,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const keyRecord = await KalssStore.findKey(key);
+    const keyRecord = await KalssStore.adoptOrFindKey(key);
     if (!keyRecord) {
       return NextResponse.json(
-        { ok: false, error: "Token tidak ditemukan. Pastikan token berawalan 'kalss_live_' atau buat token baru." },
-        { status: 404 }
+        { ok: false, error: "Format token tidak valid. Token harus diawali 'kalss_live_' (min. 19 karakter)." },
+        { status: 400 }
       );
     }
 
