@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const keyRecord = KalssStore.findKey(key);
+    const keyRecord = await KalssStore.findKey(key);
     if (!keyRecord) {
       return NextResponse.json(
         { ok: false, error: "Token tidak ditemukan. Pastikan token berawalan 'kalss_live_' atau buat token baru." },

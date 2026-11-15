@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const keyRecord = KalssStore.createKey(gameName, robloxUsername, avatarUrl);
+    const keyRecord = await KalssStore.createKey(gameName, robloxUsername, avatarUrl);
 
     return NextResponse.json({
       ok: true,

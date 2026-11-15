@@ -6,11 +6,11 @@ export async function GET(req: NextRequest) {
   if (!apiKey) {
     return NextResponse.json({ ok: false, error: "missing_api_key" }, { status: 400 });
   }
-  const keyRecord = KalssStore.findKey(apiKey);
+  const keyRecord = await KalssStore.findKey(apiKey);
   if (!keyRecord) {
     return NextResponse.json({ ok: false, error: "invalid_api_key" }, { status: 401 });
   }
-  const state = KalssStore.getSyncState(apiKey);
+  const state = await KalssStore.getSyncState(apiKey);
   return NextResponse.json({ ok: true, ...state });
 }
 
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     if (!apiKey) {
       return NextResponse.json({ ok: false, error: "missing_api_key" }, { status: 400 });
     }
-    const keyRecord = KalssStore.findKey(apiKey);
+    const keyRecord = await KalssStore.findKey(apiKey);
     if (!keyRecord) {
       return NextResponse.json({ ok: false, error: "invalid_api_key" }, { status: 401 });
     }
@@ -29,8 +29,8 @@ export async function POST(req: NextRequest) {
     const action = String(body.action || "push_from_roblox");
 
     if (action === "save_config") {
-      const saved = KalssStore.saveSyncConfig(apiKey, body.config || {}, true);
-      const state = KalssStore.getSyncState(apiKey);
+      const saved = await KalssStore.saveSyncConfig(apiKey, body.config || {}, true);
+      const state = await KalssStore.getSyncState(apiKey);
       return NextResponse.json({ ok: true, config: saved, donors: state.donors });
     }
 
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
           // Fallback: Roblox server will resolve via resolveUserId(username)
         }
       }
-      const donors = KalssStore.queueManualDonor(apiKey, {
+      const donors = await KalssStore.queueManualDonor(apiKey, {
         userId: resolvedId,
         username: resolvedName,
         displayName: resolvedDisplay,
@@ -73,14 +73,31 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "push_from_roblox") {
-      const current = KalssStore.getSyncState(apiKey);
+      const incomingUniverseId = body.universeId ? String(body.universeId).trim() : "";
+      if (
+        keyRecord.universeId &&
+        incomingUniverseId &&
+        incomingUniverseId !== "0" &&
+        keyRecord.universeId !== incomingUniverseId
+      ) {
+        return NextResponse.json({ ok: false, error: "universe_mismatch" }, { status: 403 });
+      }
+      if (
+        keyRecord.universeId &&
+        !keyRecord.verified &&
+        incomingUniverseId === keyRecord.universeId
+      ) {
+        await KalssStore.markKeyVerified(apiKey);
+      }
+
+      const current = await KalssStore.getSyncState(apiKey);
       let nextConfig = current.config;
       if (body.config && !current.config.customizedByWeb) {
-        nextConfig = KalssStore.saveSyncConfig(apiKey, body.config, false);
+        nextConfig = await KalssStore.saveSyncConfig(apiKey, body.config, false);
       }
-      const pendingDonorUpdates = KalssStore.consumePendingDonorSync(apiKey);
+      const pendingDonorUpdates = await KalssStore.consumePendingDonorSync(apiKey);
       const nextDonors = Array.isArray(body.donors)
-        ? KalssStore.upsertSyncedDonors(apiKey, body.donors)
+        ? await KalssStore.upsertSyncedDonors(apiKey, body.donors)
         : current.donors;
       return NextResponse.json({
         ok: true,

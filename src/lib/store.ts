@@ -1,6 +1,15 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { getSupabaseClient } from "./supabase";
+
+export interface GameMember {
+  userId: string;
+  username: string;
+  avatarUrl?: string;
+  role: "owner" | "co-owner";
+  addedAt: string;
+}
 
 export interface ApiKeyRecord {
   id: string;
@@ -9,6 +18,13 @@ export interface ApiKeyRecord {
   robloxUserId?: string;
   robloxUsername?: string;
   avatarUrl?: string;
+  universeId?: string;
+  placeId?: string;
+  placeName?: string;
+  creatorType?: "User" | "Group";
+  creatorId?: string;
+  verified?: boolean;
+  members?: GameMember[];
   createdAt: string;
   totalAmount: number;
   donationCount: number;
@@ -84,7 +100,6 @@ export function getDefaultSyncConfig(): SyncedGameConfig {
   };
 }
 
-// Global in-memory storage fallback for serverless
 declare global {
   var __kalssStore: DataStore | undefined;
 }
@@ -140,265 +155,751 @@ function getDefaultData(): DataStore {
         targetName: "",
         platform: "sociabuzz",
         status: "done",
-        createdAt: new Date(Date.now() - 14400000).toISOString(),
-        processedAt: new Date(Date.now() - 14390000).toISOString(),
+        createdAt: new Date(Date.now() - 10800000).toISOString(),
+        processedAt: new Date(Date.now() - 10790000).toISOString(),
       },
     ],
+    syncedConfigs: {},
+    syncedDonors: {},
+    pendingDonorSync: {},
   };
 }
 
-function loadData(): DataStore {
-  if (globalThis.__kalssStore) {
-    return globalThis.__kalssStore;
+function loadLocalData(): DataStore {
+  if (global.__kalssStore) {
+    return global.__kalssStore;
   }
-
   try {
     if (fs.existsSync(DATA_FILE)) {
       const raw = fs.readFileSync(DATA_FILE, "utf-8");
       const parsed = JSON.parse(raw);
-      globalThis.__kalssStore = parsed;
+      global.__kalssStore = parsed;
       return parsed;
     }
-  } catch (err) {
-    console.warn("[KalssStore] File read warning:", err);
+  } catch {
+    // ignore
   }
-
-  const def = getDefaultData();
-  globalThis.__kalssStore = def;
-  saveData(def);
-  return def;
+  const initial = getDefaultData();
+  global.__kalssStore = initial;
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(initial, null, 2));
+  } catch {
+    // ignore
+  }
+  return initial;
 }
 
-function saveData(data: DataStore) {
-  globalThis.__kalssStore = data;
+function saveLocalData(data: DataStore) {
+  global.__kalssStore = data;
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
-  } catch (err) {
-    // Vercel serverless filesystem is read-only outside /tmp
-    console.warn("[KalssStore] File write warning:", err);
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+  } catch {
+    // ignore
   }
+}
+
+function mapDbKey(row: Record<string, unknown>): ApiKeyRecord {
+  return {
+    id: String(row.id || ""),
+    key: String(row.key || ""),
+    name: String(row.name || "Game Roblox"),
+    robloxUserId: row.roblox_user_id ? String(row.roblox_user_id) : undefined,
+    robloxUsername: row.roblox_username ? String(row.roblox_username) : undefined,
+    avatarUrl: row.avatar_url ? String(row.avatar_url) : undefined,
+    universeId: row.universe_id ? String(row.universe_id) : undefined,
+    placeId: row.place_id ? String(row.place_id) : undefined,
+    placeName: row.place_name ? String(row.place_name) : undefined,
+    creatorType:
+      row.creator_type === "Group"
+        ? "Group"
+        : row.creator_type === "User"
+        ? "User"
+        : undefined,
+    creatorId: row.creator_id ? String(row.creator_id) : undefined,
+    verified: Boolean(row.verified),
+    members: Array.isArray(row.members) ? (row.members as GameMember[]) : [],
+    createdAt: String(row.created_at || new Date().toISOString()),
+    totalAmount: Number(row.total_amount || 0),
+    donationCount: Number(row.donation_count || 0),
+  };
+}
+
+function mapDbDonation(row: Record<string, unknown>): DonationItem {
+  return {
+    id: String(row.id || ""),
+    apiKey: String(row.api_key || ""),
+    amount: Number(row.amount || 0),
+    donorName: String(row.donor_name || "Anonymous"),
+    username: String(row.username || row.donor_name || "Anonymous"),
+    message: String(row.message || ""),
+    targetName: String(row.target_name || ""),
+    platform: (row.platform as DonationItem["platform"]) || "real",
+    status: (row.status as DonationItem["status"]) || "pending",
+    leaseToken: row.lease_token ? String(row.lease_token) : undefined,
+    claimedAt: row.claimed_at ? Number(row.claimed_at) : undefined,
+    createdAt: String(row.created_at || new Date().toISOString()),
+    processedAt: row.processed_at ? String(row.processed_at) : undefined,
+  };
+}
+
+function generateLiveKey(): string {
+  return `kalss_live_${
+    Math.random().toString(36).substring(2, 12) +
+    Math.random().toString(36).substring(2, 12)
+  }`;
 }
 
 export const KalssStore = {
-  // API Keys
-  getKeys(): ApiKeyRecord[] {
-    const data = loadData();
-    return data.keys;
+  async getKeys(): Promise<ApiKeyRecord[]> {
+    const sb = getSupabaseClient();
+    if (!sb) return loadLocalData().keys;
+
+    const { data, error } = await sb
+      .from("kalss_keys")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error || !data) return [];
+    return data.map(mapDbKey);
   },
 
-  findKey(apiKey: string): ApiKeyRecord | undefined {
-    const data = loadData();
-    let found = data.keys.find((k) => k.key === apiKey);
-    if (!found && apiKey && apiKey.startsWith("kalss_live_")) {
-      found = {
-        id: "key-" + Date.now(),
-        key: apiKey,
-        name: "Game Roblox",
-        createdAt: new Date().toISOString(),
+  async findKey(key: string): Promise<ApiKeyRecord | undefined> {
+    const clean = key.trim();
+    if (!clean) return undefined;
+    const sb = getSupabaseClient();
+    if (!sb) {
+      return loadLocalData().keys.find((k) => k.key === clean);
+    }
+
+    const { data, error } = await sb
+      .from("kalss_keys")
+      .select("*")
+      .eq("key", clean)
+      .maybeSingle();
+    if (error || !data) return undefined;
+    return mapDbKey(data);
+  },
+
+  async findKeyByUniverseId(universeId: string): Promise<ApiKeyRecord | undefined> {
+    const uid = String(universeId || "").trim();
+    if (!uid) return undefined;
+    const sb = getSupabaseClient();
+    if (!sb) {
+      return loadLocalData().keys.find((k) => k.universeId === uid);
+    }
+
+    const { data, error } = await sb
+      .from("kalss_keys")
+      .select("*")
+      .eq("universe_id", uid)
+      .maybeSingle();
+    if (error || !data) return undefined;
+    return mapDbKey(data);
+  },
+
+  async getKeysForUser(robloxUserId: string): Promise<ApiKeyRecord[]> {
+    const uid = String(robloxUserId || "").trim();
+    if (!uid) return [];
+    const all = await this.getKeys();
+    return all.filter(
+      (k) =>
+        k.robloxUserId === uid ||
+        (Array.isArray(k.members) && k.members.some((m) => m.userId === uid))
+    );
+  },
+
+  async createOrGetRobloxKey(
+    robloxUserId: string,
+    robloxUsername: string,
+    avatarUrl?: string
+  ): Promise<ApiKeyRecord> {
+    const sb = getSupabaseClient();
+    const nowIso = new Date().toISOString();
+
+    if (!sb) {
+      const data = loadLocalData();
+      const existing = data.keys.find(
+        (k) =>
+          k.robloxUserId === robloxUserId ||
+          (Array.isArray(k.members) &&
+            k.members.some((m) => m.userId === robloxUserId))
+      );
+      if (existing) {
+        if (existing.robloxUserId === robloxUserId) {
+          existing.robloxUsername = robloxUsername;
+          if (avatarUrl) existing.avatarUrl = avatarUrl;
+          saveLocalData(data);
+        }
+        return existing;
+      }
+
+      const newRecord: ApiKeyRecord = {
+        id: "rbx-" + Date.now(),
+        key: generateLiveKey(),
+        name: `Game ${robloxUsername}`,
+        robloxUserId,
+        robloxUsername,
+        avatarUrl: avatarUrl || "",
+        verified: false,
+        members: [
+          {
+            userId: robloxUserId,
+            username: robloxUsername,
+            avatarUrl: avatarUrl || "",
+            role: "owner",
+            addedAt: nowIso,
+          },
+        ],
+        createdAt: nowIso,
         totalAmount: 0,
         donationCount: 0,
       };
-      data.keys.unshift(found);
-      saveData(data);
+      data.keys.unshift(newRecord);
+      saveLocalData(data);
+      return newRecord;
     }
-    return found;
-  },
 
-  findByRobloxUserId(userId: string): ApiKeyRecord | undefined {
-    const data = loadData();
-    return data.keys.find((k) => k.robloxUserId === userId);
-  },
+    // Supabase path: check existing ownership or team membership
+    const userKeys = await this.getKeysForUser(robloxUserId);
+    if (userKeys.length > 0) {
+      // Prefer key where user is primary owner or already bound to a universe
+      const preferred =
+        userKeys.find((k) => Boolean(k.universeId)) ||
+        userKeys.find((k) => k.robloxUserId === robloxUserId) ||
+        userKeys[0];
 
-  createOrGetRobloxKey(userId: string, username: string, avatarUrl?: string): ApiKeyRecord {
-    const data = loadData();
-    const existing = data.keys.find((k) => k.robloxUserId === userId);
-    if (existing) {
-      if (avatarUrl) existing.avatarUrl = avatarUrl;
-      if (username) existing.robloxUsername = username;
-      saveData(data);
-      return existing;
+      if (preferred.robloxUserId === robloxUserId) {
+        await sb
+          .from("kalss_keys")
+          .update({
+            roblox_username: robloxUsername,
+            ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
+          })
+          .eq("key", preferred.key);
+        preferred.robloxUsername = robloxUsername;
+        if (avatarUrl) preferred.avatarUrl = avatarUrl;
+      }
+      return preferred;
     }
-    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-    let randomHex = "";
-    for (let i = 0; i < 20; i++) {
-      randomHex += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+
     const newRecord: ApiKeyRecord = {
-      id: "key-" + Date.now(),
-      key: `kalss_live_${randomHex}`,
-      name: `Game Roblox (${username})`,
-      robloxUserId: userId,
-      robloxUsername: username,
+      id: "rbx-" + Date.now(),
+      key: generateLiveKey(),
+      name: `Game ${robloxUsername}`,
+      robloxUserId,
+      robloxUsername,
       avatarUrl: avatarUrl || "",
-      createdAt: new Date().toISOString(),
+      verified: false,
+      members: [
+        {
+          userId: robloxUserId,
+          username: robloxUsername,
+          avatarUrl: avatarUrl || "",
+          role: "owner",
+          addedAt: nowIso,
+        },
+      ],
+      createdAt: nowIso,
       totalAmount: 0,
       donationCount: 0,
     };
-    data.keys.unshift(newRecord);
-    saveData(data);
+
+    const { error } = await sb.from("kalss_keys").insert({
+      key: newRecord.key,
+      id: newRecord.id,
+      name: newRecord.name,
+      roblox_user_id: newRecord.robloxUserId,
+      roblox_username: newRecord.robloxUsername,
+      avatar_url: newRecord.avatarUrl,
+      verified: false,
+      members: newRecord.members,
+      total_amount: 0,
+      donation_count: 0,
+      created_at: newRecord.createdAt,
+    });
+    if (error) {
+      throw new Error(`Supabase insert key failed: ${error.message}`);
+    }
     return newRecord;
   },
 
-  createKey(name: string, robloxUsername?: string, avatarUrl?: string): ApiKeyRecord {
-    const data = loadData();
-    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-    let randomHex = "";
-    for (let i = 0; i < 20; i++) {
-      randomHex += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+  async createKey(
+    name: string,
+    robloxUsername?: string,
+    avatarUrl?: string
+  ): Promise<ApiKeyRecord> {
     const newRecord: ApiKeyRecord = {
       id: "key-" + Date.now(),
-      key: `kalss_live_${randomHex}`,
+      key: generateLiveKey(),
       name: name || "Game Baru",
       robloxUsername: robloxUsername || "",
       avatarUrl: avatarUrl || "",
+      verified: false,
+      members: [],
       createdAt: new Date().toISOString(),
       totalAmount: 0,
       donationCount: 0,
     };
-    data.keys.unshift(newRecord);
-    saveData(data);
+
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      data.keys.unshift(newRecord);
+      saveLocalData(data);
+      return newRecord;
+    }
+
+    const { error } = await sb.from("kalss_keys").insert({
+      key: newRecord.key,
+      id: newRecord.id,
+      name: newRecord.name,
+      roblox_username: newRecord.robloxUsername,
+      avatar_url: newRecord.avatarUrl,
+      verified: false,
+      members: [],
+      total_amount: 0,
+      donation_count: 0,
+      created_at: newRecord.createdAt,
+    });
+    if (error) throw new Error(error.message);
     return newRecord;
   },
 
-  // Donations
-  getDonations(apiKey?: string, limit = 50): DonationItem[] {
-    const data = loadData();
-    let list = data.donations;
-    if (apiKey) {
-      list = list.filter((d) => d.apiKey === apiKey);
+  async bindPlace(
+    apiKey: string,
+    placeInfo: {
+      universeId: string;
+      placeId: string;
+      placeName: string;
+      creatorType: "User" | "Group";
+      creatorId: string;
     }
-    return list.slice(0, limit);
+  ): Promise<ApiKeyRecord | undefined> {
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      const rec = data.keys.find((k) => k.key === apiKey);
+      if (!rec) return undefined;
+      const changed = rec.universeId !== placeInfo.universeId;
+      rec.universeId = placeInfo.universeId;
+      rec.placeId = placeInfo.placeId;
+      rec.placeName = placeInfo.placeName;
+      rec.name = placeInfo.placeName || rec.name;
+      rec.creatorType = placeInfo.creatorType;
+      rec.creatorId = placeInfo.creatorId;
+      if (changed) rec.verified = false;
+      saveLocalData(data);
+      return rec;
+    }
+
+    const current = await this.findKey(apiKey);
+    if (!current) return undefined;
+    const changed = current.universeId !== placeInfo.universeId;
+
+    const { data, error } = await sb
+      .from("kalss_keys")
+      .update({
+        universe_id: placeInfo.universeId,
+        place_id: placeInfo.placeId,
+        place_name: placeInfo.placeName,
+        name: placeInfo.placeName || current.name,
+        creator_type: placeInfo.creatorType,
+        creator_id: placeInfo.creatorId,
+        verified: changed ? false : Boolean(current.verified),
+      })
+      .eq("key", apiKey)
+      .select("*")
+      .single();
+    if (error || !data) return undefined;
+    return mapDbKey(data);
   },
 
-  addDonation(item: Omit<DonationItem, "id" | "status" | "createdAt">): DonationItem {
-    const data = loadData();
+  async markKeyVerified(apiKey: string): Promise<void> {
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      const rec = data.keys.find((k) => k.key === apiKey);
+      if (rec && !rec.verified) {
+        rec.verified = true;
+        saveLocalData(data);
+      }
+      return;
+    }
+    await sb.from("kalss_keys").update({ verified: true }).eq("key", apiKey);
+  },
+
+  async addMember(
+    apiKey: string,
+    member: Omit<GameMember, "addedAt">
+  ): Promise<ApiKeyRecord | undefined> {
+    const current = await this.findKey(apiKey);
+    if (!current) return undefined;
+
+    const existingMembers = Array.isArray(current.members) ? [...current.members] : [];
+    const idx = existingMembers.findIndex((m) => m.userId === member.userId);
+    const entry: GameMember = {
+      ...member,
+      addedAt: new Date().toISOString(),
+    };
+    if (idx >= 0) {
+      existingMembers[idx] = { ...existingMembers[idx], ...entry };
+    } else {
+      existingMembers.push(entry);
+    }
+
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      const rec = data.keys.find((k) => k.key === apiKey);
+      if (rec) {
+        rec.members = existingMembers;
+        saveLocalData(data);
+      }
+      return rec;
+    }
+
+    const { data, error } = await sb
+      .from("kalss_keys")
+      .update({ members: existingMembers })
+      .eq("key", apiKey)
+      .select("*")
+      .single();
+    if (error || !data) return undefined;
+    return mapDbKey(data);
+  },
+
+  async removeMember(apiKey: string, userId: string): Promise<ApiKeyRecord | undefined> {
+    const current = await this.findKey(apiKey);
+    if (!current) return undefined;
+    if (current.robloxUserId === userId) return current; // cannot remove primary owner
+
+    const nextMembers = (current.members || []).filter((m) => m.userId !== userId);
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      const rec = data.keys.find((k) => k.key === apiKey);
+      if (rec) {
+        rec.members = nextMembers;
+        saveLocalData(data);
+      }
+      return rec;
+    }
+
+    const { data, error } = await sb
+      .from("kalss_keys")
+      .update({ members: nextMembers })
+      .eq("key", apiKey)
+      .select("*")
+      .single();
+    if (error || !data) return undefined;
+    return mapDbKey(data);
+  },
+
+  // Donations
+  async getDonations(apiKey?: string, limit = 50): Promise<DonationItem[]> {
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      let list = data.donations;
+      if (apiKey) list = list.filter((d) => d.apiKey === apiKey);
+      return list.slice(0, limit);
+    }
+
+    let query = sb
+      .from("kalss_donations")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (apiKey) {
+      query = query.eq("api_key", apiKey);
+    }
+    const { data, error } = await query;
+    if (error || !data) return [];
+    return data.map(mapDbDonation);
+  },
+
+  async addDonation(
+    item: Omit<DonationItem, "id" | "status" | "createdAt">
+  ): Promise<DonationItem> {
     const newDonation: DonationItem = {
       ...item,
       id: "tx-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7),
       status: "pending",
       createdAt: new Date().toISOString(),
     };
-    data.donations.unshift(newDonation);
 
-    // Update key stats
-    const keyRecord = data.keys.find((k) => k.key === item.apiKey);
-    if (keyRecord) {
-      keyRecord.totalAmount += item.amount;
-      keyRecord.donationCount += 1;
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      data.donations.unshift(newDonation);
+      const keyRecord = data.keys.find((k) => k.key === item.apiKey);
+      if (keyRecord) {
+        keyRecord.totalAmount += item.amount;
+        keyRecord.donationCount += 1;
+      }
+      saveLocalData(data);
+      return newDonation;
     }
 
-    saveData(data);
+    const { error } = await sb.from("kalss_donations").insert({
+      id: newDonation.id,
+      api_key: newDonation.apiKey,
+      amount: newDonation.amount,
+      donor_name: newDonation.donorName,
+      username: newDonation.username,
+      message: newDonation.message,
+      target_name: newDonation.targetName,
+      platform: newDonation.platform,
+      status: "pending",
+      created_at: newDonation.createdAt,
+    });
+    if (error) throw new Error(error.message);
+
+    const keyRecord = await this.findKey(item.apiKey);
+    if (keyRecord) {
+      await sb
+        .from("kalss_keys")
+        .update({
+          total_amount: keyRecord.totalAmount + item.amount,
+          donation_count: keyRecord.donationCount + 1,
+        })
+        .eq("key", item.apiKey);
+    }
+
     return newDonation;
   },
 
-  pullPendingDonations(apiKey: string, limit = 10): DonationItem[] {
-    const data = loadData();
+  async pullPendingDonations(apiKey: string, limit = 10): Promise<DonationItem[]> {
     const now = Date.now();
+    const sb = getSupabaseClient();
 
-    const pending = data.donations.filter((d) => {
-      if (d.apiKey !== apiKey) return false;
+    if (!sb) {
+      const data = loadLocalData();
+      const pending = data.donations.filter((d) => {
+        if (d.apiKey !== apiKey) return false;
+        if (d.status === "pending") return true;
+        if (d.status === "processing" && d.claimedAt && now - d.claimedAt > 60000) {
+          return true;
+        }
+        return false;
+      });
+
+      const selected = pending.slice(0, limit);
+      for (const item of selected) {
+        item.status = "processing";
+        item.leaseToken = "lease-" + Math.random().toString(36).substring(2, 12);
+        item.claimedAt = now;
+      }
+      if (selected.length > 0) saveLocalData(data);
+      return selected;
+    }
+
+    const { data, error } = await sb
+      .from("kalss_donations")
+      .select("*")
+      .eq("api_key", apiKey)
+      .in("status", ["pending", "processing"])
+      .order("created_at", { ascending: true })
+      .limit(50);
+
+    if (error || !data) return [];
+
+    const candidates = data.map(mapDbDonation).filter((d) => {
       if (d.status === "pending") return true;
-      // Reclaim abandoned processing items after 60 seconds
       if (d.status === "processing" && d.claimedAt && now - d.claimedAt > 60000) {
         return true;
       }
       return false;
     });
 
-    const selected = pending.slice(0, limit);
+    const selected = candidates.slice(0, limit);
     for (const item of selected) {
+      const leaseToken = "lease-" + Math.random().toString(36).substring(2, 12);
       item.status = "processing";
-      item.leaseToken = "lease-" + Math.random().toString(36).substring(2, 12);
+      item.leaseToken = leaseToken;
       item.claimedAt = now;
-    }
 
-    if (selected.length > 0) {
-      saveData(data);
+      await sb
+        .from("kalss_donations")
+        .update({
+          status: "processing",
+          lease_token: leaseToken,
+          claimed_at: now,
+        })
+        .eq("id", item.id);
     }
 
     return selected;
   },
 
-  acknowledgeDonations(
+  async acknowledgeDonations(
     apiKey: string,
     items: Array<{ id: string; leaseToken?: string; status: "done" | "failed" }>
-  ): number {
-    const data = loadData();
-    let updatedCount = 0;
+  ): Promise<number> {
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      let updatedCount = 0;
+      for (const ack of items) {
+        const match = data.donations.find(
+          (d) => d.id === ack.id && d.apiKey === apiKey
+        );
+        if (match) {
+          match.status = ack.status;
+          match.processedAt = new Date().toISOString();
+          updatedCount++;
+        }
+      }
+      if (updatedCount > 0) saveLocalData(data);
+      return updatedCount;
+    }
 
+    let updatedCount = 0;
+    const nowIso = new Date().toISOString();
     for (const ack of items) {
-      const match = data.donations.find((d) => d.id === ack.id && d.apiKey === apiKey);
-      if (match) {
-        match.status = ack.status;
-        match.processedAt = new Date().toISOString();
+      const { error, count } = await sb
+        .from("kalss_donations")
+        .update({ status: ack.status, processed_at: nowIso }, { count: "exact" })
+        .eq("id", ack.id)
+        .eq("api_key", apiKey);
+      if (!error && (count === null || count > 0)) {
         updatedCount++;
       }
     }
-
-    if (updatedCount > 0) {
-      saveData(data);
-    }
-
     return updatedCount;
   },
 
-  getStats(apiKey?: string) {
-    const data = loadData();
-    const list = apiKey ? data.donations.filter((d) => d.apiKey === apiKey) : data.donations;
-    const totalAmount = list.reduce((acc, curr) => acc + curr.amount, 0);
-    const totalCount = list.length;
-    const pendingCount = list.filter((d) => d.status === "pending" || d.status === "processing").length;
-    const keyCount = data.keys.length;
-
-    return {
-      totalAmount,
-      totalCount,
-      pendingCount,
-      keyCount,
-    };
-  },
-
-  getSyncState(apiKey: string): { config: SyncedGameConfig; donors: SyncedDonorRecord[] } {
-    const data = loadData();
-    if (!data.syncedConfigs) data.syncedConfigs = {};
-    if (!data.syncedDonors) data.syncedDonors = {};
-    if (!data.syncedConfigs[apiKey]) {
-      data.syncedConfigs[apiKey] = getDefaultSyncConfig();
-      saveData(data);
+  async getStats(apiKey?: string) {
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      const list = apiKey
+        ? data.donations.filter((d) => d.apiKey === apiKey)
+        : data.donations;
+      return {
+        totalAmount: list.reduce((acc, curr) => acc + curr.amount, 0),
+        totalCount: list.length,
+        pendingCount: list.filter(
+          (d) => d.status === "pending" || d.status === "processing"
+        ).length,
+        keyCount: data.keys.length,
+      };
     }
+
+    let query = sb.from("kalss_donations").select("amount, status");
+    if (apiKey) query = query.eq("api_key", apiKey);
+    const { data: donations } = await query;
+    const list = donations || [];
+
+    const { count: keyCount } = await sb
+      .from("kalss_keys")
+      .select("key", { count: "exact", head: true });
+
     return {
-      config: data.syncedConfigs[apiKey],
-      donors: data.syncedDonors[apiKey] || [],
+      totalAmount: list.reduce((acc, curr) => acc + Number(curr.amount || 0), 0),
+      totalCount: list.length,
+      pendingCount: list.filter(
+        (d) => d.status === "pending" || d.status === "processing"
+      ).length,
+      keyCount: keyCount || 0,
     };
   },
 
-  saveSyncConfig(
+  async getSyncState(
+    apiKey: string
+  ): Promise<{ config: SyncedGameConfig; donors: SyncedDonorRecord[] }> {
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      if (!data.syncedConfigs) data.syncedConfigs = {};
+      if (!data.syncedDonors) data.syncedDonors = {};
+      if (!data.syncedConfigs[apiKey]) {
+        data.syncedConfigs[apiKey] = getDefaultSyncConfig();
+        saveLocalData(data);
+      }
+      return {
+        config: data.syncedConfigs[apiKey],
+        donors: data.syncedDonors[apiKey] || [],
+      };
+    }
+
+    const { data } = await sb
+      .from("kalss_game_state")
+      .select("*")
+      .eq("api_key", apiKey)
+      .maybeSingle();
+
+    if (!data) {
+      const def = getDefaultSyncConfig();
+      await sb.from("kalss_game_state").upsert({
+        api_key: apiKey,
+        synced_config: def,
+        synced_donors: [],
+        pending_donor_sync: [],
+        updated_at: new Date().toISOString(),
+      });
+      return { config: def, donors: [] };
+    }
+
+    return {
+      config: (data.synced_config as SyncedGameConfig) || getDefaultSyncConfig(),
+      donors: Array.isArray(data.synced_donors)
+        ? (data.synced_donors as SyncedDonorRecord[])
+        : [],
+    };
+  },
+
+  async saveSyncConfig(
     apiKey: string,
     partial: Partial<SyncedGameConfig>,
     fromWeb = true
-  ): SyncedGameConfig {
-    const data = loadData();
-    if (!data.syncedConfigs) data.syncedConfigs = {};
-    const current = data.syncedConfigs[apiKey] || getDefaultSyncConfig();
+  ): Promise<SyncedGameConfig> {
+    const state = await this.getSyncState(apiKey);
+    const current = state.config;
     const next: SyncedGameConfig = {
-      presets: Array.isArray(partial.presets) && partial.presets.length > 0 ? partial.presets : current.presets,
-      popupMinAmount: typeof partial.popupMinAmount === "number" ? partial.popupMinAmount : current.popupMinAmount,
-      cinematicMinAmount: typeof partial.cinematicMinAmount === "number" ? partial.cinematicMinAmount : current.cinematicMinAmount,
-      globalMinAmount: typeof partial.globalMinAmount === "number" ? partial.globalMinAmount : current.globalMinAmount,
+      presets:
+        Array.isArray(partial.presets) && partial.presets.length > 0
+          ? partial.presets
+          : current.presets,
+      popupMinAmount:
+        typeof partial.popupMinAmount === "number"
+          ? partial.popupMinAmount
+          : current.popupMinAmount,
+      cinematicMinAmount:
+        typeof partial.cinematicMinAmount === "number"
+          ? partial.cinematicMinAmount
+          : current.cinematicMinAmount,
+      globalMinAmount:
+        typeof partial.globalMinAmount === "number"
+          ? partial.globalMinAmount
+          : current.globalMinAmount,
       updatedAt: new Date().toISOString(),
       customizedByWeb: fromWeb ? true : current.customizedByWeb,
     };
-    data.syncedConfigs[apiKey] = next;
-    saveData(data);
+
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      if (!data.syncedConfigs) data.syncedConfigs = {};
+      data.syncedConfigs[apiKey] = next;
+      saveLocalData(data);
+      return next;
+    }
+
+    await sb.from("kalss_game_state").upsert({
+      api_key: apiKey,
+      synced_config: next,
+      updated_at: next.updatedAt,
+    });
     return next;
   },
 
-  upsertSyncedDonors(apiKey: string, incoming: SyncedDonorRecord[]): SyncedDonorRecord[] {
-    const data = loadData();
-    if (!data.syncedDonors) data.syncedDonors = {};
+  async upsertSyncedDonors(
+    apiKey: string,
+    incoming: SyncedDonorRecord[]
+  ): Promise<SyncedDonorRecord[]> {
+    const state = await this.getSyncState(apiKey);
     const map = new Map<string, SyncedDonorRecord>();
-    for (const existing of data.syncedDonors[apiKey] || []) {
+    for (const existing of state.donors) {
       map.set(String(existing.userId), existing);
     }
     const nowIso = new Date().toISOString();
@@ -410,7 +911,9 @@ export const KalssStore = {
       map.set(uid, {
         userId: uid,
         username: String(item.username || prev?.username || "Player"),
-        displayName: String(item.displayName || item.username || prev?.displayName || "Player"),
+        displayName: String(
+          item.displayName || item.username || prev?.displayName || "Player"
+        ),
         total: nextTotal,
         updatedAt: nowIso,
       });
@@ -418,21 +921,31 @@ export const KalssStore = {
     const merged = Array.from(map.values())
       .sort((a, b) => b.total - a.total)
       .slice(0, 100);
-    data.syncedDonors[apiKey] = merged;
-    saveData(data);
+
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      if (!data.syncedDonors) data.syncedDonors = {};
+      data.syncedDonors[apiKey] = merged;
+      saveLocalData(data);
+      return merged;
+    }
+
+    await sb.from("kalss_game_state").upsert({
+      api_key: apiKey,
+      synced_donors: merged,
+      updated_at: nowIso,
+    });
     return merged;
   },
 
-  queueManualDonor(
+  async queueManualDonor(
     apiKey: string,
     donor: { userId?: string; username: string; displayName?: string; total: number }
-  ): SyncedDonorRecord[] {
-    const data = loadData();
-    if (!data.syncedDonors) data.syncedDonors = {};
-    if (!data.pendingDonorSync) data.pendingDonorSync = {};
-
+  ): Promise<SyncedDonorRecord[]> {
     const cleanUsername = String(donor.username || "Player").trim();
-    const uid = String(donor.userId || "").trim() || `name:${cleanUsername.toLowerCase()}`;
+    const uid =
+      String(donor.userId || "").trim() || `name:${cleanUsername.toLowerCase()}`;
     const rec: SyncedDonorRecord = {
       userId: uid,
       username: cleanUsername,
@@ -441,30 +954,102 @@ export const KalssStore = {
       updatedAt: new Date().toISOString(),
     };
 
-    const list = (data.syncedDonors[apiKey] || []).filter(
-      (d) => String(d.userId) !== uid && d.username.toLowerCase() !== cleanUsername.toLowerCase()
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      if (!data.syncedDonors) data.syncedDonors = {};
+      if (!data.pendingDonorSync) data.pendingDonorSync = {};
+
+      const list = (data.syncedDonors[apiKey] || []).filter(
+        (d) =>
+          String(d.userId) !== uid &&
+          d.username.toLowerCase() !== cleanUsername.toLowerCase()
+      );
+      list.push(rec);
+      list.sort((a, b) => b.total - a.total);
+      data.syncedDonors[apiKey] = list.slice(0, 100);
+
+      const queue = (data.pendingDonorSync[apiKey] || []).filter(
+        (d) =>
+          String(d.userId) !== uid &&
+          d.username.toLowerCase() !== cleanUsername.toLowerCase()
+      );
+      queue.push(rec);
+      data.pendingDonorSync[apiKey] = queue;
+      saveLocalData(data);
+      return data.syncedDonors[apiKey];
+    }
+
+    const { data: row } = await sb
+      .from("kalss_game_state")
+      .select("synced_donors, pending_donor_sync")
+      .eq("api_key", apiKey)
+      .maybeSingle();
+
+    const currentDonors: SyncedDonorRecord[] = Array.isArray(row?.synced_donors)
+      ? row.synced_donors
+      : [];
+    const currentQueue: SyncedDonorRecord[] = Array.isArray(
+      row?.pending_donor_sync
+    )
+      ? row.pending_donor_sync
+      : [];
+
+    const list = currentDonors.filter(
+      (d) =>
+        String(d.userId) !== uid &&
+        d.username.toLowerCase() !== cleanUsername.toLowerCase()
     );
     list.push(rec);
     list.sort((a, b) => b.total - a.total);
-    data.syncedDonors[apiKey] = list.slice(0, 100);
+    const nextDonors = list.slice(0, 100);
 
-    const queue = (data.pendingDonorSync[apiKey] || []).filter(
-      (d) => String(d.userId) !== uid && d.username.toLowerCase() !== cleanUsername.toLowerCase()
+    const queue = currentQueue.filter(
+      (d) =>
+        String(d.userId) !== uid &&
+        d.username.toLowerCase() !== cleanUsername.toLowerCase()
     );
     queue.push(rec);
-    data.pendingDonorSync[apiKey] = queue;
 
-    saveData(data);
-    return data.syncedDonors[apiKey];
+    await sb.from("kalss_game_state").upsert({
+      api_key: apiKey,
+      synced_donors: nextDonors,
+      pending_donor_sync: queue,
+      updated_at: rec.updatedAt,
+    });
+    return nextDonors;
   },
 
-  consumePendingDonorSync(apiKey: string): SyncedDonorRecord[] {
-    const data = loadData();
-    if (!data.pendingDonorSync) return [];
-    const items = data.pendingDonorSync[apiKey] || [];
+  async consumePendingDonorSync(apiKey: string): Promise<SyncedDonorRecord[]> {
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      if (!data.pendingDonorSync) return [];
+      const items = data.pendingDonorSync[apiKey] || [];
+      if (items.length > 0) {
+        data.pendingDonorSync[apiKey] = [];
+        saveLocalData(data);
+      }
+      return items;
+    }
+
+    const { data: row } = await sb
+      .from("kalss_game_state")
+      .select("pending_donor_sync")
+      .eq("api_key", apiKey)
+      .maybeSingle();
+
+    const items: SyncedDonorRecord[] = Array.isArray(row?.pending_donor_sync)
+      ? row.pending_donor_sync
+      : [];
     if (items.length > 0) {
-      data.pendingDonorSync[apiKey] = [];
-      saveData(data);
+      await sb
+        .from("kalss_game_state")
+        .update({
+          pending_donor_sync: [],
+          updated_at: new Date().toISOString(),
+        })
+        .eq("api_key", apiKey);
     }
     return items;
   },

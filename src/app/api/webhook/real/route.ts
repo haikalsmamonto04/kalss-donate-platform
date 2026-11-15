@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const keyRecord = KalssStore.findKey(apiKey);
+    const keyRecord = await KalssStore.findKey(apiKey);
     if (!keyRecord) {
       return NextResponse.json(
         { ok: false, error: "Invalid API key" },
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const item = KalssStore.addDonation({
+    const item = await KalssStore.addDonation({
       apiKey: apiKey,
       amount: amount,
       donorName: donorName,

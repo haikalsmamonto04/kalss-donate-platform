@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     // If key not in body, try to find matching key from items
     let targetKey = apiKey;
     if (!targetKey && items[0]?.id) {
-      const allDonations = KalssStore.getDonations(undefined, 200);
+      const allDonations = await KalssStore.getDonations(undefined, 200);
       const match = allDonations.find((d) => d.id === items[0].id);
       if (match) {
         targetKey = match.apiKey;
@@ -22,10 +22,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (!targetKey) {
-      targetKey = KalssStore.getKeys()[0]?.key || "";
+      const keys = await KalssStore.getKeys();
+      targetKey = keys[0]?.key || "";
     }
 
-    const count = KalssStore.acknowledgeDonations(targetKey, items);
+    const count = await KalssStore.acknowledgeDonations(targetKey, items);
 
     return NextResponse.json({
       ok: true,

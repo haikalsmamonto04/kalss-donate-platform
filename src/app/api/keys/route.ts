@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const name = body.name || "Game Kalss Studio";
-    const newKey = KalssStore.createKey(name);
+    const newKey = await KalssStore.createKey(name);
 
     return NextResponse.json({
       ok: true,

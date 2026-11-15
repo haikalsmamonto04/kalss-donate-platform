@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const keyRecord = KalssStore.findKey(apiKey);
+    const keyRecord = await KalssStore.findKey(apiKey);
     if (!keyRecord) {
       return NextResponse.json(
         { ok: false, error: "invalid_api_key" },
@@ -22,7 +22,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const items = KalssStore.pullPendingDonations(apiKey, limit);
+    const incomingUniverseId = body.universeId ? String(body.universeId).trim() : "";
+    if (
+      keyRecord.universeId &&
+      incomingUniverseId &&
+      incomingUniverseId !== "0" &&
+      keyRecord.universeId !== incomingUniverseId
+    ) {
+      return NextResponse.json(
+        { ok: false, error: "universe_mismatch" },
+        { status: 403 }
+      );
+    }
+
+    if (
+      keyRecord.universeId &&
+      !keyRecord.verified &&
+      incomingUniverseId === keyRecord.universeId
+    ) {
+      await KalssStore.markKeyVerified(apiKey);
+    }
+
+    const items = await KalssStore.pullPendingDonations(apiKey, limit);
 
     return NextResponse.json({
       ok: true,

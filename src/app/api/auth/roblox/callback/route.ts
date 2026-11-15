@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     const avatarUrl = userInfo.picture || "";
 
     // Create or retrieve persistent Kalss Token
-    const keyRecord = KalssStore.createOrGetRobloxKey(userId, username, avatarUrl);
+    const keyRecord = await KalssStore.createOrGetRobloxKey(userId, username, avatarUrl);
 
     // Redirect to dashboard with token
     return NextResponse.redirect(`${origin}/?token=${encodeURIComponent(keyRecord.key)}`);

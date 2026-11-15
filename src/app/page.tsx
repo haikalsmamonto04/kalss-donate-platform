@@ -37,12 +37,28 @@ import {
   QrCode,
 } from "lucide-react";
 
+interface GameMember {
+  userId: string;
+  username: string;
+  avatarUrl?: string;
+  role: "owner" | "co-owner";
+  addedAt: string;
+}
+
 interface KeyRecord {
   id: string;
   key: string;
   name: string;
+  robloxUserId?: string;
   robloxUsername?: string;
   avatarUrl?: string;
+  universeId?: string;
+  placeId?: string;
+  placeName?: string;
+  creatorType?: "User" | "Group";
+  creatorId?: string;
+  verified?: boolean;
+  members?: GameMember[];
   createdAt: string;
   totalAmount: number;
   donationCount: number;
@@ -141,6 +157,13 @@ export default function DashboardPage() {
   const [manualTotal, setManualTotal] = useState(0);
   const [manualStatus, setManualStatus] = useState<string | null>(null);
 
+  // Place Binding & Community Team state
+  const [placeIdInput, setPlaceIdInput] = useState("");
+  const [placeStatus, setPlaceStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [placeLoading, setPlaceLoading] = useState(false);
+  const [memberUsernameInput, setMemberUsernameInput] = useState("");
+  const [memberStatus, setMemberStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+
   // Interior Guide & Filter state
   const [showGuide, setShowGuide] = useState(false);
   const [activeGuideTab, setActiveGuideTab] = useState<"bagibagi" | "sociabuzz" | "real">("bagibagi");
@@ -197,6 +220,91 @@ export default function DashboardPage() {
       console.error("Fetch sync error:", err);
     }
   }, []);
+
+  const handleBindPlace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authToken || !placeIdInput.trim()) return;
+    setPlaceLoading(true);
+    setPlaceStatus(null);
+    try {
+      const res = await fetch("/api/place", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "bind_place",
+          key: authToken,
+          placeId: placeIdInput.trim(),
+          actorUserId: currentUser?.robloxUserId,
+          actorUsername: currentUser?.robloxUsername,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.keyRecord) {
+        setCurrentUser(data.keyRecord);
+        if (data.joinedExisting && data.keyRecord.key !== authToken) {
+          localStorage.setItem("kalss_auth_token", data.keyRecord.key);
+          setAuthToken(data.keyRecord.key);
+          window.history.replaceState({}, "", `/?token=${encodeURIComponent(data.keyRecord.key)}`);
+          fetchSync(data.keyRecord.key);
+        }
+        setPlaceStatus({ ok: true, msg: data.message || "Place berhasil ditautkan!" });
+      } else {
+        setPlaceStatus({ ok: false, msg: data.error || "Gagal menautkan Place." });
+      }
+    } catch {
+      setPlaceStatus({ ok: false, msg: "Terjadi kesalahan koneksi saat verifikasi Place." });
+    } finally {
+      setPlaceLoading(false);
+    }
+  };
+
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authToken || !memberUsernameInput.trim()) return;
+    setMemberStatus(null);
+    try {
+      const res = await fetch("/api/place", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "add_member",
+          key: authToken,
+          username: memberUsernameInput.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.keyRecord) {
+        setCurrentUser(data.keyRecord);
+        setMemberUsernameInput("");
+        setMemberStatus({ ok: true, msg: data.message || "Co-Owner ditambahkan!" });
+      } else {
+        setMemberStatus({ ok: false, msg: data.error || "Gagal menambah Co-Owner." });
+      }
+    } catch {
+      setMemberStatus({ ok: false, msg: "Gagal terhubung ke server." });
+    }
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!authToken) return;
+    try {
+      const res = await fetch("/api/place", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "remove_member",
+          key: authToken,
+          userId,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.keyRecord) {
+        setCurrentUser(data.keyRecord);
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   const fetchStats = useCallback(async (key: string) => {
     try {
@@ -945,6 +1053,126 @@ export default function DashboardPage() {
         {/* TAB 1: WEBHOOK & ROBLOX CONFIG */}
         {activeTab === "webhook" && (
           <div className="space-y-6">
+
+            {/* Place Verification & Community Team Box */}
+            <div className="p-6 sm:p-8 rounded-3xl card-obsidian-luxury border border-amber-500/20 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-black text-white flex items-center gap-2">
+                    <Gamepad2 className="w-5 h-5 text-amber-400" />
+                    Verifikasi Place Roblox &amp; Tim Owner Komunitas
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Tautkan Place ID agar token ini terkunci ke Universe game kamu. Jika Place milik Community/Group, sesama role Owner (rank &ge; 250) atau Co-Owner yang diundang akan berbagi 1 token &amp; DataStore yang sama.
+                  </p>
+                </div>
+                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono shrink-0 border ${
+                  currentUser?.verified
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                    : currentUser?.universeId
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                    : "bg-white/5 border-white/10 text-slate-400"
+                }`}>
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  {currentUser?.verified
+                    ? "VERIFIED STUDIO CONNECTED"
+                    : currentUser?.universeId
+                    ? "MENUNGGU KONEKSI STUDIO"
+                    : "BELUM DITAUTKAN"}
+                </div>
+              </div>
+
+              {currentUser?.universeId && (
+                <div className="p-4 rounded-2xl bg-black/40 border border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="space-y-1">
+                    <div className="font-bold text-white">{currentUser.placeName || currentUser.name}</div>
+                    <div className="font-mono text-[11px] text-slate-400">
+                      Place ID: <span className="text-amber-300">{currentUser.placeId}</span> &bull; Universe ID:{" "}
+                      <span className="text-amber-300">{currentUser.universeId}</span> &bull; Creator:{" "}
+                      <span className="text-emerald-300">{currentUser.creatorType || "User"}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleBindPlace} className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  value={placeIdInput}
+                  onChange={(e) => setPlaceIdInput(e.target.value)}
+                  placeholder={currentUser?.placeId ? `Place ID saat ini: ${currentUser.placeId}` : "Masukkan Place ID Roblox (contoh: 132133195058596)"}
+                  className="flex-1 bg-black/50 border border-white/15 rounded-xl px-4 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-amber-500/60"
+                />
+                <button
+                  type="submit"
+                  disabled={placeLoading || !placeIdInput.trim()}
+                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold text-xs transition shrink-0"
+                >
+                  {placeLoading ? "Memverifikasi..." : "Verifikasi & Tautkan Place"}
+                </button>
+              </form>
+
+              {placeStatus && (
+                <div className={`text-xs px-3.5 py-2.5 rounded-xl border ${
+                  placeStatus.ok
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                    : "bg-rose-500/10 border-rose-500/30 text-rose-300"
+                }`}>
+                  {placeStatus.msg}
+                </div>
+              )}
+
+              {/* Co-Owner Team Management */}
+              <div className="pt-4 border-t border-white/10 space-y-3">
+                <div className="text-xs font-bold text-slate-300">
+                  Akses Owner &amp; Co-Owner Dashboard ({(currentUser?.members || []).length})
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(currentUser?.members || []).map((m) => (
+                    <div
+                      key={m.userId}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs"
+                    >
+                      <span className="font-mono text-white">{m.username}</span>
+                      <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">
+                        {m.role}
+                      </span>
+                      {m.userId !== currentUser?.robloxUserId && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMember(m.userId)}
+                          className="text-rose-400 hover:text-rose-300 ml-1"
+                          title="Hapus akses"
+                        >
+                          &times;
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <form onSubmit={handleAddMember} className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={memberUsernameInput}
+                    onChange={(e) => setMemberUsernameInput(e.target.value)}
+                    placeholder="Undang Co-Owner via Username Roblox..."
+                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!memberUsernameInput.trim()}
+                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 disabled:opacity-40 text-white font-semibold text-xs transition shrink-0"
+                  >
+                    + Tambah Co-Owner
+                  </button>
+                </form>
+                {memberStatus && (
+                  <div className={`text-xs ${memberStatus.ok ? "text-emerald-400" : "text-rose-400"}`}>
+                    {memberStatus.msg}
+                  </div>
+                )}
+              </div>
+            </div>
             
             {/* Webhook URLs Box */}
             <div className="p-6 sm:p-8 rounded-3xl card-obsidian-luxury border border-white/10 space-y-6">

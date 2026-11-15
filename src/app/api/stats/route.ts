@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const keyRecord = KalssStore.findKey(key);
+    const keyRecord = await KalssStore.findKey(key);
     if (!keyRecord) {
       return NextResponse.json(
         { ok: false, error: "Token tidak ditemukan atau tidak valid" },
@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const stats = KalssStore.getStats(key);
-    const recent = KalssStore.getDonations(key, 50);
+    const stats = await KalssStore.getStats(key);
+    const recent = await KalssStore.getDonations(key, 50);
 
     return NextResponse.json({
       ok: true,

@@ -4,7 +4,8 @@ import { KalssStore } from "@/lib/store";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const apiKey = body.apiKey || KalssStore.getKeys()[0]?.key;
+    const fallbackKeys = body.apiKey ? [] : await KalssStore.getKeys();
+    const apiKey = body.apiKey || fallbackKeys[0]?.key;
     const amount = Number(body.amount) || 100000;
     const donorName = body.donorName || "TestDonor";
     const message = typeof body.message === "string" ? body.message.trim() : "";
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const item = KalssStore.addDonation({
+    const item = await KalssStore.addDonation({
       apiKey,
       amount,
       donorName,
