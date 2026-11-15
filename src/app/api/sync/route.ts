@@ -36,10 +36,39 @@ export async function POST(req: NextRequest) {
 
     if (action === "upsert_donor") {
       const donor = body.donor || {};
-      if (!donor.userId || !donor.username) {
-        return NextResponse.json({ ok: false, error: "userId_and_username_required" }, { status: 400 });
+      const username = String(donor.username || "").trim();
+      if (!username) {
+        return NextResponse.json({ ok: false, error: "username_required" }, { status: 400 });
       }
-      const donors = KalssStore.queueManualDonor(apiKey, donor);
+      let resolvedId = String(donor.userId || "").trim();
+      let resolvedName = username;
+      let resolvedDisplay = String(donor.displayName || username).trim();
+      if (!resolvedId) {
+        try {
+          const r = await fetch("https://users.roblox.com/v1/usernames/users", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
+          });
+          if (r.ok) {
+            const j = await r.json();
+            const first = Array.isArray(j?.data) ? j.data[0] : null;
+            if (first?.id) {
+              resolvedId = String(first.id);
+              resolvedName = String(first.name || username);
+              resolvedDisplay = String(first.displayName || resolvedName);
+            }
+          }
+        } catch {
+          // Fallback: Roblox server will resolve via resolveUserId(username)
+        }
+      }
+      const donors = KalssStore.queueManualDonor(apiKey, {
+        userId: resolvedId,
+        username: resolvedName,
+        displayName: resolvedDisplay,
+        total: Number(donor.total) || 0,
+      });
       return NextResponse.json({ ok: true, donors });
     }
 

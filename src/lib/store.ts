@@ -425,27 +425,32 @@ export const KalssStore = {
 
   queueManualDonor(
     apiKey: string,
-    donor: { userId: string; username: string; displayName?: string; total: number }
+    donor: { userId?: string; username: string; displayName?: string; total: number }
   ): SyncedDonorRecord[] {
     const data = loadData();
     if (!data.syncedDonors) data.syncedDonors = {};
     if (!data.pendingDonorSync) data.pendingDonorSync = {};
 
-    const uid = String(donor.userId || "").trim();
+    const cleanUsername = String(donor.username || "Player").trim();
+    const uid = String(donor.userId || "").trim() || `name:${cleanUsername.toLowerCase()}`;
     const rec: SyncedDonorRecord = {
       userId: uid,
-      username: String(donor.username || "Player").trim(),
-      displayName: String(donor.displayName || donor.username || "Player").trim(),
+      username: cleanUsername,
+      displayName: String(donor.displayName || cleanUsername).trim(),
       total: Math.max(0, Math.floor(Number(donor.total) || 0)),
       updatedAt: new Date().toISOString(),
     };
 
-    const list = (data.syncedDonors[apiKey] || []).filter((d) => String(d.userId) !== uid);
+    const list = (data.syncedDonors[apiKey] || []).filter(
+      (d) => String(d.userId) !== uid && d.username.toLowerCase() !== cleanUsername.toLowerCase()
+    );
     list.push(rec);
     list.sort((a, b) => b.total - a.total);
     data.syncedDonors[apiKey] = list.slice(0, 100);
 
-    const queue = (data.pendingDonorSync[apiKey] || []).filter((d) => String(d.userId) !== uid);
+    const queue = (data.pendingDonorSync[apiKey] || []).filter(
+      (d) => String(d.userId) !== uid && d.username.toLowerCase() !== cleanUsername.toLowerCase()
+    );
     queue.push(rec);
     data.pendingDonorSync[apiKey] = queue;
 
