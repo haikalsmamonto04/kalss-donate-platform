@@ -1543,7 +1543,7 @@ export default function DashboardPage() {
                             : "text-slate-400 hover:text-white"
                         }`}
                       >
-                        Real / QRIS Universal
+                        Saweria Webhook
                       </button>
                     </div>
 
@@ -1566,9 +1566,12 @@ export default function DashboardPage() {
                     )}
 
                     {activeGuideTab === "real" && (
-                      <p className="text-xs text-slate-300 leading-relaxed">
-                        Endpoint Real ini menerima payload JSON POST standar dari payment gateway kustom, Midtrans, Xendit, atau bot payment QRIS kamu. Cukup kirim field <code className="text-amber-400 font-mono">donorName</code>, <code className="text-amber-400 font-mono">amount</code>, dan <code className="text-amber-400 font-mono">message</code>.
-                      </p>
+                      <ol className="list-decimal list-inside space-y-2 text-xs text-slate-300 leading-relaxed font-sans">
+                        <li>Buka dashboard integrasi Saweria kamu di <a href="https://saweria.co/admin/integration" target="_blank" rel="noreferrer" className="text-emerald-400 underline font-semibold">saweria.co/admin/integration</a>.</li>
+                        <li>Pilih menu <span className="font-semibold text-white">Webhook</span> lalu aktifkan integrasi webhook.</li>
+                        <li>Salin <span className="font-mono text-emerald-300">Saweria Webhook URL</span> di atas dan tempelkan ke kolom Webhook URL di Saweria.</li>
+                        <li>Klik <span className="font-semibold text-white">Simpan</span>. Payload Saweria (<code className="text-amber-400 font-mono">amount_raw</code>, <code className="text-amber-400 font-mono">donator_name</code>, <code className="text-amber-400 font-mono">message</code>) otomatis terhubung ke server Roblox!</li>
+                      </ol>
                     )}
                   </div>
                 )}
@@ -1735,7 +1738,7 @@ Config.Backend = {
                           : "bg-[#080a10] border-white/10 text-slate-400 hover:text-white"
                       }`}
                     >
-                      {plat === "real" ? "Real" : plat}
+                      {plat === "real" ? "Saweria" : plat}
                     </button>
                   ))}
                 </div>
@@ -1788,7 +1791,7 @@ Config.Backend = {
                           : "text-slate-400 hover:text-white"
                       }`}
                     >
-                      {filter}
+                      {filter === "real" ? "Saweria" : filter}
                     </button>
                   ))}
                 </div>
