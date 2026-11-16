@@ -994,11 +994,29 @@ export const KalssStore = {
   ): Promise<SyncedGameConfig> {
     const state = await this.getSyncState(apiKey);
     const current = state.config;
+    const fallbackPresets = getDefaultSyncConfig().presets;
+    const mergedPresets =
+      Array.isArray(partial.presets) && partial.presets.length > 0
+        ? partial.presets.map((inc) => {
+            const key = String(inc.effect || "").toLowerCase();
+            const existing =
+              current.presets.find((p) => p.effect.toLowerCase() === key) ||
+              fallbackPresets.find((p) => p.effect.toLowerCase() === key);
+            const amt = Math.max(0, Number(inc.amount ?? existing?.amount ?? 0) || 0);
+            const shortTag = amt >= 1000 ? `+${Math.round(amt / 1000)}K` : `+${amt}`;
+            return {
+              name: inc.name || existing?.name || key.toUpperCase(),
+              amount: amt,
+              effect: inc.effect || existing?.effect || key,
+              desc: inc.desc || existing?.desc || "Efek donasi real",
+              tag: inc.tag || (amt > 0 ? shortTag : existing?.tag || "+0"),
+              icon: inc.icon || existing?.icon || "✨",
+            };
+          })
+        : current.presets;
+
     const next: SyncedGameConfig = {
-      presets:
-        Array.isArray(partial.presets) && partial.presets.length > 0
-          ? partial.presets
-          : current.presets,
+      presets: mergedPresets,
       popupMinAmount:
         typeof partial.popupMinAmount === "number"
           ? partial.popupMinAmount
@@ -1076,6 +1094,14 @@ export const KalssStore = {
     incoming: SyncedDonorRecord[]
   ): Promise<SyncedDonorRecord[]> {
     const state = await this.getSyncState(apiKey);
+    const pending = await this.getPendingDonorSync(apiKey);
+    const pendingByUid = new Map<string, SyncedDonorRecord>();
+    const pendingByUsername = new Map<string, SyncedDonorRecord>();
+    for (const p of pending) {
+      if (p.userId) pendingByUid.set(String(p.userId), p);
+      if (p.username) pendingByUsername.set(String(p.username).toLowerCase(), p);
+    }
+
     const map = new Map<string, SyncedDonorRecord>();
     for (const existing of state.donors) {
       map.set(String(existing.userId), existing);
@@ -1085,13 +1111,23 @@ export const KalssStore = {
     for (const item of incoming) {
       const uid = String(item.userId || "").trim();
       if (!uid) continue;
+      const unameLower = String(item.username || "").trim().toLowerCase();
+      const pendingMatch =
+        pendingByUid.get(uid) || (unameLower ? pendingByUsername.get(unameLower) : undefined);
+
+      // Jika donatur ini sedang menunggu dihapus (pending total == 0), jangan munculkan lagi di tabel web
+      if (pendingMatch && Number(pendingMatch.total) === 0) {
+        map.delete(uid);
+        continue;
+      }
+
       const prev = map.get(uid);
       const prevAgeMs = prev?.updatedAt ? nowMs - Date.parse(prev.updatedAt) : Infinity;
       const incomingTotal = Math.max(0, Number(item.total) || 0);
-      // Jika barusan diedit manual dari website (< 10 detik), jangan tertimpa server Roblox yang telat sync;
-      // selain itu ikuti nilai resmi dari DataStore Roblox (termasuk jika nilainya turun/reset).
-      const nextTotal =
-        prev && Number.isFinite(prevAgeMs) && prevAgeMs < 10_000
+      // Jika masih ada di pending_donor_sync atau barusan diedit manual (< 10 detik), pertahankan nilai web
+      const nextTotal = pendingMatch
+        ? Math.max(0, Number(pendingMatch.total) || 0)
+        : prev && Number.isFinite(prevAgeMs) && prevAgeMs < 10_000
           ? prev.total
           : incomingTotal;
       map.set(uid, {
@@ -1268,17 +1304,12 @@ export const KalssStore = {
     return nextDonors;
   },
 
-  async consumePendingDonorSync(apiKey: string): Promise<SyncedDonorRecord[]> {
+  async getPendingDonorSync(apiKey: string): Promise<SyncedDonorRecord[]> {
     const sb = getSupabaseClient();
     if (!sb) {
       const data = loadLocalData();
       if (!data.pendingDonorSync) return [];
-      const items = data.pendingDonorSync[apiKey] || [];
-      if (items.length > 0) {
-        data.pendingDonorSync[apiKey] = [];
-        saveLocalData(data);
-      }
-      return items;
+      return data.pendingDonorSync[apiKey] || [];
     }
 
     const { data: row } = await sb
@@ -1287,19 +1318,80 @@ export const KalssStore = {
       .eq("api_key", apiKey)
       .maybeSingle();
 
-    const items: SyncedDonorRecord[] = Array.isArray(row?.pending_donor_sync)
-      ? row.pending_donor_sync
+    return Array.isArray(row?.pending_donor_sync)
+      ? (row.pending_donor_sync as SyncedDonorRecord[])
       : [];
-    if (items.length > 0) {
+  },
+
+  async ackPendingDonorSync(
+    apiKey: string,
+    ackedIds: string[]
+  ): Promise<SyncedDonorRecord[]> {
+    const idSet = new Set(ackedIds.map((id) => String(id).trim()).filter(Boolean));
+    if (idSet.size === 0) return this.getPendingDonorSync(apiKey);
+
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      if (!data.pendingDonorSync) return [];
+      const current = data.pendingDonorSync[apiKey] || [];
+      const remaining = current.filter(
+        (d) =>
+          !idSet.has(String(d.userId)) &&
+          !idSet.has(String(d.username || "").toLowerCase()) &&
+          !idSet.has(`name:${String(d.username || "").toLowerCase()}`)
+      );
+      data.pendingDonorSync[apiKey] = remaining;
+      saveLocalData(data);
+      return remaining;
+    }
+
+    const current = await this.getPendingDonorSync(apiKey);
+    const remaining = current.filter(
+      (d) =>
+        !idSet.has(String(d.userId)) &&
+        !idSet.has(String(d.username || "").toLowerCase()) &&
+        !idSet.has(`name:${String(d.username || "").toLowerCase()}`)
+    );
+    if (remaining.length !== current.length) {
       await sb
         .from("kalss_game_state")
         .update({
-          pending_donor_sync: [],
+          pending_donor_sync: remaining,
           updated_at: new Date().toISOString(),
         })
         .eq("api_key", apiKey);
     }
-    return items;
+    return remaining;
+  },
+
+  async requeueAllDonors(apiKey: string): Promise<number> {
+    const state = await this.getSyncState(apiKey);
+    const nowIso = new Date().toISOString();
+    const queue = state.donors.map((d) => ({
+      ...d,
+      updatedAt: nowIso,
+    }));
+
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      if (!data.pendingDonorSync) data.pendingDonorSync = {};
+      data.pendingDonorSync[apiKey] = queue;
+      saveLocalData(data);
+      return queue.length;
+    }
+
+    await sb.from("kalss_game_state").upsert({
+      api_key: apiKey,
+      pending_donor_sync: queue,
+      updated_at: nowIso,
+    });
+    return queue.length;
+  },
+
+  async consumePendingDonorSync(apiKey: string): Promise<SyncedDonorRecord[]> {
+    return this.getPendingDonorSync(apiKey);
   },
 
   async getTerminalState(apiKey: string): Promise<TerminalState> {

@@ -89,6 +89,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, donors });
     }
 
+    if (action === "force_push_all_donors") {
+      const queued = await KalssStore.requeueAllDonors(apiKey);
+      return NextResponse.json({ ok: true, queued });
+    }
+
     if (action === "push_from_roblox") {
       const incomingUniverseId = body.universeId ? String(body.universeId).trim() : "";
       if (
@@ -112,7 +117,29 @@ export async function POST(req: NextRequest) {
       if (body.config && !current.config.customizedByWeb) {
         nextConfig = await KalssStore.saveSyncConfig(apiKey, body.config, false);
       }
-      const pendingDonorUpdates = await KalssStore.consumePendingDonorSync(apiKey);
+
+      // Acknowledge previously applied updates first
+      const ackIds: string[] = Array.isArray(body.appliedSyncIds)
+        ? body.appliedSyncIds.map((x: unknown) => String(x || "").trim()).filter(Boolean)
+        : [];
+      const existingPending = await KalssStore.getPendingDonorSync(apiKey);
+      if (Array.isArray(body.donors)) {
+        const incomingByUid = new Map<string, number>();
+        for (const d of body.donors) {
+          if (d?.userId) incomingByUid.set(String(d.userId), Number(d.total) || 0);
+        }
+        for (const p of existingPending) {
+          const uid = String(p.userId || "");
+          if (uid && incomingByUid.has(uid) && incomingByUid.get(uid) === Number(p.total)) {
+            ackIds.push(uid);
+          }
+        }
+      }
+      const pendingDonorUpdates =
+        ackIds.length > 0
+          ? await KalssStore.ackPendingDonorSync(apiKey, ackIds)
+          : existingPending;
+
       const pendingIds = new Set(pendingDonorUpdates.map((p) => String(p.userId)));
       const pendingNames = new Set(
         pendingDonorUpdates.map((p) => String(p.username || "").toLowerCase())

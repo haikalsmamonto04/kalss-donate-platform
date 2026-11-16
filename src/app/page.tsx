@@ -294,6 +294,13 @@ export default function DashboardPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!currentUser?.key || activeTab !== "sync") return;
+    fetchSync(currentUser.key);
+    const id = setInterval(() => fetchSync(currentUser.key), 5000);
+    return () => clearInterval(id);
+  }, [currentUser?.key, activeTab, fetchSync]);
+
   const fetchPlaces = useCallback(async (key: string, actorUserId?: string) => {
     try {
       const uid = actorUserId || loggedInUserIdRef.current || "";
@@ -2350,13 +2357,42 @@ Config.Backend = {
                     Data top donatur dari Roblox DataStore (`KalssDonateRealBoard`) yang tersinkron ke dashboard.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => fetchSync(currentKey)}
-                  className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer self-start sm:self-auto shrink-0"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" /> Refresh
-                </button>
+                <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setManualStatus("⏳ Mengantrekan semua donatur website ke Roblox...");
+                      try {
+                        const res = await fetch("/api/sync", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            apiKey: currentKey,
+                            action: "force_push_all_donors",
+                          }),
+                        });
+                        const data = await res.json();
+                        if (data.ok) {
+                          setManualStatus(`✅ ${data.queued || 0} donatur diantrekan untuk sinkron ke Roblox (tunggu ~5-10 detik).`);
+                        } else {
+                          setManualStatus(`❌ Gagal: ${data.error || "error"}`);
+                        }
+                      } catch {
+                        setManualStatus("❌ Gagal menghubungi server");
+                      }
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-xs font-bold text-amber-300 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Send className="w-3.5 h-3.5" /> Sync Semua ke Roblox
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fetchSync(currentKey)}
+                    className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Refresh
+                  </button>
+                </div>
               </div>
 
               {/* Form Tambah / Update DataStore Manual */}
