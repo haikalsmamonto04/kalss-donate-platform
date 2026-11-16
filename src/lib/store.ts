@@ -1006,6 +1006,31 @@ export const KalssStore = {
     return next;
   },
 
+  async resetSyncConfig(apiKey: string): Promise<SyncedGameConfig> {
+    const state = await this.getSyncState(apiKey);
+    const next: SyncedGameConfig = {
+      ...state.config,
+      customizedByWeb: false,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      if (!data.syncedConfigs) data.syncedConfigs = {};
+      data.syncedConfigs[apiKey] = next;
+      saveLocalData(data);
+      return next;
+    }
+
+    await sb.from("kalss_game_state").upsert({
+      api_key: apiKey,
+      synced_config: next,
+      updated_at: next.updatedAt,
+    });
+    return next;
+  },
+
   async upsertSyncedDonors(
     apiKey: string,
     incoming: SyncedDonorRecord[]

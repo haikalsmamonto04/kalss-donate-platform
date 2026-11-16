@@ -34,6 +34,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, config: saved, donors: state.donors });
     }
 
+    if (action === "reset_config") {
+      const reset = await KalssStore.resetSyncConfig(apiKey);
+      const state = await KalssStore.getSyncState(apiKey);
+      return NextResponse.json({ ok: true, config: reset, donors: state.donors });
+    }
+
     if (action === "upsert_donor") {
       const donor = body.donor || {};
       const username = String(donor.username || "").trim();

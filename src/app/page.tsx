@@ -1990,6 +1990,38 @@ Config.Backend = {
                 >
                   {syncSaving ? "Menyimpan..." : "Simpan & Sync ke Roblox"}
                 </button>
+                <button
+                  type="button"
+                  disabled={syncSaving}
+                  onClick={async () => {
+                    setSyncSaving(true);
+                    setSyncStatus(null);
+                    try {
+                      const res = await fetch("/api/sync", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          key: currentKey,
+                          action: "reset_config",
+                        }),
+                      });
+                      const data = await res.json();
+                      if (data.ok) {
+                        setSyncConfig(data.config);
+                        setSyncStatus("✅ Mode sinkronisasi direset! Website akan otomatis mengambil config dari server Roblox.");
+                      } else {
+                        setSyncStatus("❌ Gagal reset: " + (data.error || "unknown"));
+                      }
+                    } catch {
+                      setSyncStatus("❌ Gagal menghubungi server.");
+                    } finally {
+                      setSyncSaving(false);
+                    }
+                  }}
+                  className="px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-bold text-xs transition cursor-pointer disabled:opacity-50"
+                >
+                  Ambil dari Config Roblox
+                </button>
               </div>
 
               {syncStatus && (
