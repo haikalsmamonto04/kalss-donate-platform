@@ -148,9 +148,10 @@ export default function DashboardPage() {
   const termEndRef = useRef<HTMLDivElement | null>(null);
 
   const fetchTerminal = useCallback(async () => {
-    if (!currentKey) return;
+    const key = currentUser?.key;
+    if (!key) return;
     try {
-      const res = await fetch(`/api/terminal?key=${encodeURIComponent(currentKey)}`);
+      const res = await fetch(`/api/terminal?key=${encodeURIComponent(key)}`);
       const data = await res.json();
       if (data.ok) {
         setTermServers(Array.isArray(data.servers) ? data.servers : []);
@@ -162,7 +163,7 @@ export default function DashboardPage() {
     } catch {
       // ignore transient network errors
     }
-  }, [currentKey, currentUser?.verified]);
+  }, [currentUser?.key, currentUser?.verified]);
 
   useEffect(() => {
     if (!isGameConnected && activeTab !== "webhook" && activeTab !== "terminal") {
@@ -171,12 +172,12 @@ export default function DashboardPage() {
   }, [isGameConnected, activeTab]);
 
   useEffect(() => {
-    if (!currentKey) return;
+    if (!currentUser?.key) return;
     if (activeTab !== "terminal" && isGameConnected) return;
     fetchTerminal();
     const id = setInterval(fetchTerminal, 3000);
     return () => clearInterval(id);
-  }, [currentKey, activeTab, isGameConnected, fetchTerminal]);
+  }, [currentUser?.key, activeTab, isGameConnected, fetchTerminal]);
 
   useEffect(() => {
     if (activeTab === "terminal" && termAutoScroll && termEndRef.current) {
