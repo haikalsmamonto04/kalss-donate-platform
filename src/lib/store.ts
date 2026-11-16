@@ -1015,12 +1015,20 @@ export const KalssStore = {
     for (const existing of state.donors) {
       map.set(String(existing.userId), existing);
     }
-    const nowIso = new Date().toISOString();
+    const nowMs = Date.now();
+    const nowIso = new Date(nowMs).toISOString();
     for (const item of incoming) {
       const uid = String(item.userId || "").trim();
       if (!uid) continue;
       const prev = map.get(uid);
-      const nextTotal = Math.max(Number(item.total) || 0, prev ? prev.total : 0);
+      const prevAgeMs = prev?.updatedAt ? nowMs - Date.parse(prev.updatedAt) : Infinity;
+      const incomingTotal = Math.max(0, Number(item.total) || 0);
+      // Jika barusan diedit manual dari website (< 10 detik), jangan tertimpa server Roblox yang telat sync;
+      // selain itu ikuti nilai resmi dari DataStore Roblox (termasuk jika nilainya turun/reset).
+      const nextTotal =
+        prev && Number.isFinite(prevAgeMs) && prevAgeMs < 10_000
+          ? prev.total
+          : incomingTotal;
       map.set(uid, {
         userId: uid,
         username: String(item.username || prev?.username || "Player"),
@@ -1129,6 +1137,68 @@ export const KalssStore = {
       synced_donors: nextDonors,
       pending_donor_sync: queue,
       updated_at: rec.updatedAt,
+    });
+    return nextDonors;
+  },
+
+  async deleteManualDonor(
+    apiKey: string,
+    donor: { userId?: string; username?: string }
+  ): Promise<SyncedDonorRecord[]> {
+    const uid = String(donor.userId || "").trim();
+    const cleanUsername = String(donor.username || "").trim().toLowerCase();
+    const nowIso = new Date().toISOString();
+
+    const matchesTarget = (d: SyncedDonorRecord) =>
+      (uid !== "" && String(d.userId) === uid) ||
+      (cleanUsername !== "" && d.username.toLowerCase() === cleanUsername);
+
+    const resetEntry: SyncedDonorRecord = {
+      userId: uid || `name:${cleanUsername}`,
+      username: String(donor.username || "Player").trim(),
+      displayName: String(donor.username || "Player").trim(),
+      total: 0,
+      updatedAt: nowIso,
+    };
+
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData();
+      if (!data.syncedDonors) data.syncedDonors = {};
+      if (!data.pendingDonorSync) data.pendingDonorSync = {};
+
+      const nextDonors = (data.syncedDonors[apiKey] || []).filter((d) => !matchesTarget(d));
+      data.syncedDonors[apiKey] = nextDonors;
+
+      const queue = (data.pendingDonorSync[apiKey] || []).filter((d) => !matchesTarget(d));
+      queue.push(resetEntry);
+      data.pendingDonorSync[apiKey] = queue;
+      saveLocalData(data);
+      return nextDonors;
+    }
+
+    const { data: row } = await sb
+      .from("kalss_game_state")
+      .select("synced_donors, pending_donor_sync")
+      .eq("api_key", apiKey)
+      .maybeSingle();
+
+    const currentDonors: SyncedDonorRecord[] = Array.isArray(row?.synced_donors)
+      ? row.synced_donors
+      : [];
+    const currentQueue: SyncedDonorRecord[] = Array.isArray(row?.pending_donor_sync)
+      ? row.pending_donor_sync
+      : [];
+
+    const nextDonors = currentDonors.filter((d) => !matchesTarget(d));
+    const queue = currentQueue.filter((d) => !matchesTarget(d));
+    queue.push(resetEntry);
+
+    await sb.from("kalss_game_state").upsert({
+      api_key: apiKey,
+      synced_donors: nextDonors,
+      pending_donor_sync: queue,
+      updated_at: nowIso,
     });
     return nextDonors;
   },

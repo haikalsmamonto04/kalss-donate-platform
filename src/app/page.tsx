@@ -2244,16 +2244,53 @@ Config.Backend = {
                                 </button>
                               </div>
                             ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingDonorId(d.userId);
-                                  setEditingDonorTotal(Number(d.total) || 0);
-                                }}
-                                className="px-3 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-[11px] cursor-pointer"
-                              >
-                                Edit
-                              </button>
+                              <div className="inline-flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingDonorId(d.userId);
+                                    setEditingDonorTotal(Number(d.total) || 0);
+                                  }}
+                                  className="px-3 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-[11px] cursor-pointer"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!window.confirm(`Hapus & reset data donasi @${d.username}?`)) {
+                                      return;
+                                    }
+                                    setManualStatus(null);
+                                    try {
+                                      const res = await fetch("/api/sync", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                          key: currentKey,
+                                          action: "delete_donor",
+                                          donor: {
+                                            userId: d.userId,
+                                            username: d.username,
+                                          },
+                                        }),
+                                      });
+                                      const data = await res.json();
+                                      if (data.ok) {
+                                        setSyncedDonors(data.donors || []);
+                                        setManualStatus(`✅ DataStore @${d.username} dihapus & direset di Roblox!`);
+                                      } else {
+                                        setManualStatus("❌ Gagal hapus: " + (data.error || "invalid"));
+                                      }
+                                    } catch {
+                                      setManualStatus("❌ Gagal menghubungi server.");
+                                    }
+                                  }}
+                                  className="px-3 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-[11px] cursor-pointer"
+                                >
+                                  Hapus
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>

@@ -72,6 +72,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, donors });
     }
 
+    if (action === "delete_donor") {
+      const donor = body.donor || {};
+      const userId = String(donor.userId || "").trim();
+      const username = String(donor.username || "").trim();
+      if (!userId && !username) {
+        return NextResponse.json({ ok: false, error: "donor_required" }, { status: 400 });
+      }
+      const donors = await KalssStore.deleteManualDonor(apiKey, { userId, username });
+      return NextResponse.json({ ok: true, donors });
+    }
+
     if (action === "push_from_roblox") {
       const incomingUniverseId = body.universeId ? String(body.universeId).trim() : "";
       if (
