@@ -132,7 +132,57 @@ export default function DashboardPage() {
     keyCount: 0,
   });
   const [donations, setDonations] = useState<Donation[]>([]);
-  const [activeTab, setActiveTab] = useState<"webhook" | "simulator" | "logs" | "sync">("webhook");
+  const [activeTab, setActiveTab] = useState<"webhook" | "terminal" | "simulator" | "logs" | "sync">("webhook");
+  const isGameConnected = Boolean(currentUser?.verified && currentUser?.universeId);
+
+  // Terminal state
+  const [termServers, setTermServers] = useState<
+    { serverId: string; isStudio: boolean; playerCount: number; uptimeSec: number; status: string; lastSeen: string }[]
+  >([]);
+  const [termLogs, setTermLogs] = useState<
+    { id: string; serverId: string; isStudio: boolean; level: "info" | "warn" | "error"; message: string; ts: string }[]
+  >([]);
+  const [termServerFilter, setTermServerFilter] = useState<string>("all");
+  const [termLevelFilter, setTermLevelFilter] = useState<"all" | "info" | "warn" | "error">("all");
+  const [termAutoScroll, setTermAutoScroll] = useState(true);
+  const termEndRef = useRef<HTMLDivElement | null>(null);
+
+  const fetchTerminal = useCallback(async () => {
+    if (!currentKey) return;
+    try {
+      const res = await fetch(`/api/terminal?key=${encodeURIComponent(currentKey)}`);
+      const data = await res.json();
+      if (data.ok) {
+        setTermServers(Array.isArray(data.servers) ? data.servers : []);
+        setTermLogs(Array.isArray(data.logs) ? data.logs : []);
+        if (data.verified && !currentUser?.verified) {
+          setCurrentUser((prev) => (prev ? { ...prev, verified: true } : prev));
+        }
+      }
+    } catch {
+      // ignore transient network errors
+    }
+  }, [currentKey, currentUser?.verified]);
+
+  useEffect(() => {
+    if (!isGameConnected && activeTab !== "webhook" && activeTab !== "terminal") {
+      setActiveTab("webhook");
+    }
+  }, [isGameConnected, activeTab]);
+
+  useEffect(() => {
+    if (!currentKey) return;
+    if (activeTab !== "terminal" && isGameConnected) return;
+    fetchTerminal();
+    const id = setInterval(fetchTerminal, 3000);
+    return () => clearInterval(id);
+  }, [currentKey, activeTab, isGameConnected, fetchTerminal]);
+
+  useEffect(() => {
+    if (activeTab === "terminal" && termAutoScroll && termEndRef.current) {
+      termEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [termLogs, activeTab, termAutoScroll]);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const [copiedText, setCopiedText] = useState<string | null>(null);
 
@@ -1110,38 +1160,62 @@ export default function DashboardPage() {
             Pengaturan API &amp; Webhook
           </button>
           <button
-            onClick={() => setActiveTab("simulator")}
+            onClick={() => setActiveTab("terminal")}
             className={`shrink-0 whitespace-nowrap py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
-              activeTab === "simulator"
+              activeTab === "terminal"
                 ? "bg-gradient-to-r from-amber-500/20 to-amber-600/15 text-amber-300 border border-amber-500/35 shadow-sm shadow-amber-500/10"
                 : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
             }`}
           >
-            <Flame className="w-4 h-4 text-amber-400 shrink-0" />
-            Simulator Uji Coba Efek
+            <Terminal className="w-4 h-4 text-amber-400 shrink-0" />
+            Terminal
+            <span
+              className={`w-2 h-2 rounded-full ${
+                termServers.some((s) => s.status === "online")
+                  ? "bg-emerald-400 animate-pulse"
+                  : currentUser?.universeId
+                  ? "bg-amber-400"
+                  : "bg-slate-600"
+              }`}
+            />
           </button>
-          <button
-            onClick={() => setActiveTab("logs")}
-            className={`shrink-0 whitespace-nowrap py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
-              activeTab === "logs"
-                ? "bg-gradient-to-r from-amber-500/20 to-amber-600/15 text-amber-300 border border-amber-500/35 shadow-sm shadow-amber-500/10"
-                : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
-            }`}
-          >
-            <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-            Riwayat Transaksi Live ({donations.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("sync")}
-            className={`shrink-0 whitespace-nowrap py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
-              activeTab === "sync"
-                ? "bg-gradient-to-r from-amber-500/20 to-amber-600/15 text-amber-300 border border-amber-500/35 shadow-sm shadow-amber-500/10"
-                : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
-            }`}
-          >
-            <RefreshCw className="w-4 h-4 text-amber-400 shrink-0" />
-            Sync DataStore &amp; Config ({syncedDonors.length})
-          </button>
+          {isGameConnected && (
+            <>
+              <button
+                onClick={() => setActiveTab("simulator")}
+                className={`shrink-0 whitespace-nowrap py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
+                  activeTab === "simulator"
+                    ? "bg-gradient-to-r from-amber-500/20 to-amber-600/15 text-amber-300 border border-amber-500/35 shadow-sm shadow-amber-500/10"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
+                }`}
+              >
+                <Flame className="w-4 h-4 text-amber-400 shrink-0" />
+                Simulator Uji Coba Efek
+              </button>
+              <button
+                onClick={() => setActiveTab("logs")}
+                className={`shrink-0 whitespace-nowrap py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
+                  activeTab === "logs"
+                    ? "bg-gradient-to-r from-amber-500/20 to-amber-600/15 text-amber-300 border border-amber-500/35 shadow-sm shadow-amber-500/10"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
+                }`}
+              >
+                <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                Riwayat Transaksi Live ({donations.length})
+              </button>
+              <button
+                onClick={() => setActiveTab("sync")}
+                className={`shrink-0 whitespace-nowrap py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
+                  activeTab === "sync"
+                    ? "bg-gradient-to-r from-amber-500/20 to-amber-600/15 text-amber-300 border border-amber-500/35 shadow-sm shadow-amber-500/10"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent"
+                }`}
+              >
+                <RefreshCw className="w-4 h-4 text-amber-400 shrink-0" />
+                Sync DataStore &amp; Config ({syncedDonors.length})
+              </button>
+            </>
+          )}
         </div>
 
         {/* TAB 1: WEBHOOK & ROBLOX CONFIG */}
@@ -1692,6 +1766,168 @@ Config.Backend = {
               </div>
             </div>
 
+          </div>
+        )}
+
+        {/* TAB TERMINAL & SERVER MONITOR */}
+        {activeTab === "terminal" && (
+          <div className="space-y-5">
+            <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl card-obsidian-luxury border border-white/10 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-black text-white flex items-center gap-2">
+                    <Terminal className="w-5 h-5 text-amber-400" />
+                    Terminal &amp; Server Monitor
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {!currentUser?.universeId
+                      ? "Place belum didaftarkan. Masukkan Place ID di tab Pengaturan API & Webhook terlebih dahulu."
+                      : !isGameConnected
+                      ? `Place ${currentUser.placeName || currentUser.universeId} terdaftar. Menunggu koneksi dari Roblox Studio atau Live Server...`
+                      : `Terhubung ke ${currentUser.placeName || currentUser.universeId}. Memantau status server, restart, dan log secara real-time.`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={fetchTerminal}
+                    className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-200 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Refresh
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!currentKey) return;
+                      await fetch(`/api/terminal?key=${encodeURIComponent(currentKey)}`, {
+                        method: "DELETE",
+                      });
+                      setTermLogs([]);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-xs font-semibold text-rose-300 cursor-pointer"
+                  >
+                    Clear Log
+                  </button>
+                </div>
+              </div>
+
+              {termServers.length === 0 ? (
+                <div className="p-4 rounded-2xl bg-[#07090e] border border-white/5 text-xs text-slate-400">
+                  Belum ada server Roblox (Studio / Live) yang mengirim heartbeat ke terminal.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {termServers.map((srv) => {
+                    const secAgo = Math.max(
+                      0,
+                      Math.floor((Date.now() - Date.parse(srv.lastSeen || "")) / 1000)
+                    );
+                    const badgeColor =
+                      srv.status === "online"
+                        ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                        : srv.status === "restarting"
+                        ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                        : "bg-slate-500/15 text-slate-400 border-slate-500/30";
+                    return (
+                      <div
+                        key={srv.serverId}
+                        className="p-3.5 rounded-2xl bg-[#07090e] border border-white/10 space-y-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-200">
+                            {srv.isStudio ? "STUDIO PLAYTEST" : "LIVE SERVER"}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase ${badgeColor}`}>
+                            {srv.status}
+                          </span>
+                        </div>
+                        <div className="font-mono text-[11px] text-slate-300 truncate" title={srv.serverId}>
+                          {srv.serverId}
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-slate-400">
+                          <span>{srv.playerCount} Players</span>
+                          <span>Uptime {srv.uptimeSec}s · {Number.isFinite(secAgo) ? `${secAgo}s lalu` : "-"}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={termServerFilter}
+                    onChange={(e) => setTermServerFilter(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl bg-[#07090e] border border-white/10 text-xs text-slate-200 font-mono"
+                  >
+                    <option value="all">Semua Server ({termServers.length})</option>
+                    {termServers.map((s) => (
+                      <option key={s.serverId} value={s.serverId}>
+                        {s.isStudio ? "[STUDIO] " : "[LIVE] "}
+                        {s.serverId.slice(0, 18)}
+                      </option>
+                    ))}
+                  </select>
+                  {(["all", "info", "warn", "error"] as const).map((lvl) => (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => setTermLevelFilter(lvl)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase border cursor-pointer ${
+                        termLevelFilter === lvl
+                          ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
+                          : "bg-white/5 border-white/10 text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
+                <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={termAutoScroll}
+                    onChange={(e) => setTermAutoScroll(e.target.checked)}
+                    className="accent-amber-500"
+                  />
+                  Auto-scroll
+                </label>
+              </div>
+
+              <div className="h-80 overflow-y-auto rounded-2xl bg-[#05070b] border border-white/10 p-3.5 font-mono text-[11px] space-y-1.5">
+                {termLogs
+                  .filter((l) => (termServerFilter === "all" ? true : l.serverId === termServerFilter))
+                  .filter((l) => (termLevelFilter === "all" ? true : l.level === termLevelFilter))
+                  .map((l) => {
+                    const lvlColor =
+                      l.level === "error"
+                        ? "text-rose-400"
+                        : l.level === "warn"
+                        ? "text-amber-300"
+                        : "text-emerald-300";
+                    return (
+                      <div key={l.id} className="flex items-start gap-2 leading-relaxed">
+                        <span className="text-slate-500 shrink-0">
+                          {new Date(l.ts).toLocaleTimeString("id-ID")}
+                        </span>
+                        <span className={`uppercase font-bold shrink-0 ${lvlColor}`}>
+                          [{l.level}]
+                        </span>
+                        <span className="text-sky-400 shrink-0">
+                          {l.isStudio ? "[STUDIO]" : `[${l.serverId.slice(0, 8)}]`}
+                        </span>
+                        <span className="text-slate-200 break-all">{l.message}</span>
+                      </div>
+                    );
+                  })}
+                {termLogs.length === 0 && (
+                  <div className="text-slate-500 italic">Menunggu log dari server Roblox...</div>
+                )}
+                <div ref={termEndRef} />
+              </div>
+            </div>
           </div>
         )}
 

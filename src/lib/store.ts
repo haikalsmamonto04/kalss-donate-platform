@@ -70,6 +70,30 @@ export interface SyncedGameConfig {
   globalMinAmount: number;
   updatedAt: string;
   customizedByWeb?: boolean;
+  _terminal?: TerminalState;
+}
+
+export interface TerminalServerNode {
+  serverId: string;
+  isStudio: boolean;
+  playerCount: number;
+  uptimeSec: number;
+  status: "online" | "restarting" | "offline";
+  lastSeen: string;
+}
+
+export interface TerminalLogEntry {
+  id: string;
+  serverId: string;
+  isStudio: boolean;
+  level: "info" | "warn" | "error";
+  message: string;
+  ts: string;
+}
+
+export interface TerminalState {
+  servers: TerminalServerNode[];
+  logs: TerminalLogEntry[];
 }
 
 interface DataStore {
@@ -953,8 +977,10 @@ export const KalssStore = {
       return { config: def, donors: [] };
     }
 
+    const rawCfg = (data.synced_config as SyncedGameConfig) || getDefaultSyncConfig();
+    const { _terminal: _ignored, ...cleanCfg } = rawCfg;
     return {
-      config: (data.synced_config as SyncedGameConfig) || getDefaultSyncConfig(),
+      config: cleanCfg,
       donors: Array.isArray(data.synced_donors)
         ? (data.synced_donors as SyncedDonorRecord[])
         : [],
@@ -998,9 +1024,16 @@ export const KalssStore = {
       return next;
     }
 
+    const { data: existingRow } = await sb
+      .from("kalss_game_state")
+      .select("synced_config")
+      .eq("api_key", apiKey)
+      .maybeSingle();
+    const existingTerm = (existingRow?.synced_config as SyncedGameConfig | undefined)?._terminal;
+
     await sb.from("kalss_game_state").upsert({
       api_key: apiKey,
-      synced_config: next,
+      synced_config: existingTerm ? { ...next, _terminal: existingTerm } : next,
       updated_at: next.updatedAt,
     });
     return next;
@@ -1023,9 +1056,16 @@ export const KalssStore = {
       return next;
     }
 
+    const { data: existingRow } = await sb
+      .from("kalss_game_state")
+      .select("synced_config")
+      .eq("api_key", apiKey)
+      .maybeSingle();
+    const existingTerm = (existingRow?.synced_config as SyncedGameConfig | undefined)?._terminal;
+
     await sb.from("kalss_game_state").upsert({
       api_key: apiKey,
-      synced_config: next,
+      synced_config: existingTerm ? { ...next, _terminal: existingTerm } : next,
       updated_at: next.updatedAt,
     });
     return next;
@@ -1260,5 +1300,152 @@ export const KalssStore = {
         .eq("api_key", apiKey);
     }
     return items;
+  },
+
+  async getTerminalState(apiKey: string): Promise<TerminalState> {
+    const normalizeServers = (servers: TerminalServerNode[]): TerminalServerNode[] => {
+      const now = Date.now();
+      return servers
+        .map((srv) => {
+          const ageMs = srv.lastSeen ? now - Date.parse(srv.lastSeen) : Infinity;
+          let status = srv.status;
+          if (status !== "restarting" && ageMs > 20_000) {
+            status = "offline";
+          }
+          return { ...srv, status };
+        })
+        .sort((a, b) => Date.parse(b.lastSeen) - Date.parse(a.lastSeen))
+        .slice(0, 20);
+    };
+
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData() as unknown as {
+        terminalState?: Record<string, TerminalState>;
+      };
+      const term = data.terminalState?.[apiKey] || { servers: [], logs: [] };
+      return {
+        servers: normalizeServers(term.servers || []),
+        logs: Array.isArray(term.logs) ? term.logs : [],
+      };
+    }
+
+    const { data: row } = await sb
+      .from("kalss_game_state")
+      .select("synced_config")
+      .eq("api_key", apiKey)
+      .maybeSingle();
+    const cfg = (row?.synced_config as SyncedGameConfig | undefined) || undefined;
+    const term = cfg?._terminal || { servers: [], logs: [] };
+    return {
+      servers: normalizeServers(Array.isArray(term.servers) ? term.servers : []),
+      logs: Array.isArray(term.logs) ? term.logs : [],
+    };
+  },
+
+  async pushTerminalEvent(
+    apiKey: string,
+    payload: {
+      serverId: string;
+      isStudio: boolean;
+      playerCount: number;
+      uptimeSec: number;
+      status: "online" | "restarting" | "offline";
+      logs?: Array<{ level?: string; message?: string; ts?: string }>;
+    }
+  ): Promise<TerminalState> {
+    const nowIso = new Date().toISOString();
+    const serverId = String(payload.serverId || "unknown").slice(0, 80);
+    const isStudio = Boolean(payload.isStudio);
+
+    const buildNext = (prev: TerminalState): TerminalState => {
+      const servers = (prev.servers || []).filter((s) => s.serverId !== serverId);
+      servers.unshift({
+        serverId,
+        isStudio,
+        playerCount: Math.max(0, Math.floor(Number(payload.playerCount) || 0)),
+        uptimeSec: Math.max(0, Math.floor(Number(payload.uptimeSec) || 0)),
+        status: payload.status || "online",
+        lastSeen: nowIso,
+      });
+
+      const incomingLogs: TerminalLogEntry[] = Array.isArray(payload.logs)
+        ? payload.logs
+            .filter((l) => l && typeof l.message === "string" && l.message.trim() !== "")
+            .map((l, idx) => ({
+              id: `${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 7)}`,
+              serverId,
+              isStudio,
+              level:
+                l.level === "error" || l.level === "warn" ? l.level : "info",
+              message: String(l.message).slice(0, 300),
+              ts: l.ts || nowIso,
+            }))
+        : [];
+
+      const nextLogs = [...(prev.logs || []), ...incomingLogs].slice(-120);
+      return {
+        servers: servers.slice(0, 20),
+        logs: nextLogs,
+      };
+    };
+
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData() as unknown as {
+        terminalState?: Record<string, TerminalState>;
+      };
+      if (!data.terminalState) data.terminalState = {};
+      const next = buildNext(data.terminalState[apiKey] || { servers: [], logs: [] });
+      data.terminalState[apiKey] = next;
+      saveLocalData(data as unknown as ReturnType<typeof loadLocalData>);
+      return next;
+    }
+
+    const { data: row } = await sb
+      .from("kalss_game_state")
+      .select("synced_config")
+      .eq("api_key", apiKey)
+      .maybeSingle();
+    const currentCfg =
+      (row?.synced_config as SyncedGameConfig | undefined) || getDefaultSyncConfig();
+    const nextTerm = buildNext(currentCfg._terminal || { servers: [], logs: [] });
+
+    await sb.from("kalss_game_state").upsert({
+      api_key: apiKey,
+      synced_config: { ...currentCfg, _terminal: nextTerm },
+      updated_at: nowIso,
+    });
+    return nextTerm;
+  },
+
+  async clearTerminalLogs(apiKey: string): Promise<void> {
+    const sb = getSupabaseClient();
+    if (!sb) {
+      const data = loadLocalData() as unknown as {
+        terminalState?: Record<string, TerminalState>;
+      };
+      if (data.terminalState?.[apiKey]) {
+        data.terminalState[apiKey].logs = [];
+        saveLocalData(data as unknown as ReturnType<typeof loadLocalData>);
+      }
+      return;
+    }
+    const { data: row } = await sb
+      .from("kalss_game_state")
+      .select("synced_config")
+      .eq("api_key", apiKey)
+      .maybeSingle();
+    const currentCfg =
+      (row?.synced_config as SyncedGameConfig | undefined) || getDefaultSyncConfig();
+    const nextTerm: TerminalState = {
+      servers: currentCfg._terminal?.servers || [],
+      logs: [],
+    };
+    await sb.from("kalss_game_state").upsert({
+      api_key: apiKey,
+      synced_config: { ...currentCfg, _terminal: nextTerm },
+      updated_at: new Date().toISOString(),
+    });
   },
 };
