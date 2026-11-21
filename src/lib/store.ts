@@ -993,9 +993,12 @@ export const KalssStore = {
     const state = await this.getSyncState(apiKey);
     const current = state.config;
     const fallbackPresets = getDefaultSyncConfig().presets;
+    const DEPRECATED_EFFECTS = new Set(["phoenix", "gojo"]);
     const mergedPresets =
       Array.isArray(partial.presets) && partial.presets.length > 0
-        ? partial.presets.map((inc) => {
+        ? partial.presets
+            .filter((inc) => !DEPRECATED_EFFECTS.has(String(inc.effect || "").toLowerCase()))
+            .map((inc) => {
             const key = String(inc.effect || "").toLowerCase();
             const existing =
               current.presets.find((p) => p.effect.toLowerCase() === key) ||
@@ -1056,9 +1059,9 @@ export const KalssStore = {
   },
 
   async resetSyncConfig(apiKey: string): Promise<SyncedGameConfig> {
-    const state = await this.getSyncState(apiKey);
+    const defaults = getDefaultSyncConfig();
     const next: SyncedGameConfig = {
-      ...state.config,
+      ...defaults,
       customizedByWeb: false,
       updatedAt: new Date().toISOString(),
     };
